@@ -1,0 +1,113 @@
+import { z } from '@hono/zod-openapi'
+import { AppHandler } from '~/lib/handler'
+import { createRoute } from '@hono/zod-openapi'
+import { GenericResponses } from '~/lib/response-schemas'
+import { getConnection } from '~/lib/db/connection'
+import { user } from '~/lib/db/schema'
+import { eq } from 'drizzle-orm'
+
+const bodySchema = z.object({
+    email: z.string().email().openapi({
+        description: "User's email address",
+        example: 'user@example.com',
+    }),
+    password: z.string().min(1).openapi({
+        description: "User's password",
+        example: 'password123',
+    }),
+})
+
+const responseSchema = z.object({
+    success: z.boolean(),
+    message: z.string(),
+    user: z
+        .object({
+            id: z.string(),
+            email: z.string(),
+            name: z.string(),
+            username: z.string().nullable(),
+        })
+        .optional(),
+})
+
+const openRoute = createRoute({
+    path: '/login',
+    method: 'post',
+    summary: 'Login user',
+    description: 'Login with email and password.',
+    tags: ['Auth'],
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: bodySchema,
+                },
+            },
+        },
+    },
+    responses: {
+        200: {
+            description: 'Login successful',
+            content: {
+                'application/json': {
+                    schema: responseSchema,
+                },
+            },
+        },
+        ...GenericResponses,
+    },
+})
+
+export const AuthLoginRoute = (handler: AppHandler) => {
+    handler.openapi(openRoute, async ctx => {
+        const { email, password } = ctx.req.valid('json')
+        const auth = ctx.get('auth')
+        const { drizzle } = getConnection(ctx.env)
+
+        try {
+            const result = await auth.api.signInEmail({
+                body: {
+                    email,
+                    password,
+                },
+            })
+
+            if (!result.user) {
+                return ctx.json(
+                    {
+                        success: false,
+                        message: 'Invalid credentials',
+                    },
+                    401,
+                )
+            }
+
+            const dbUser = await drizzle.select().from(user).where(eq(user.id, result.user.id)).limit(1)
+
+            const username = dbUser.length > 0 ? dbUser[0]!.username : null
+
+            return ctx.json(
+                {
+                    success: true,
+                    message: 'Login successful',
+                    user: {
+                        id: result.user.id,
+                        email: result.user.email,
+                        name: result.user.name,
+                        username: username,
+                    },
+                },
+                200,
+            )
+        } catch (error: any) {
+            console.error('Login error:', error)
+            return ctx.json(
+                {
+                    success: false,
+                    message: error?.message || 'Login failed',
+                },
+                500,
+            )
+        }
+    })
+}

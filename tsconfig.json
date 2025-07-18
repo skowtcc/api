@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "skipLibCheck": true,
+        "target": "es2021",
+        "module": "es2022",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "lib": ["es2021"],
+        "baseUrl": "./",
+        "paths": {
+            "~/*": ["src/*"]
+        },
+        "strictNullChecks": true,
+        "noUncheckedIndexedAccess": true,
+        "types": ["@cloudflare/workers-types", "node"],
+        "moduleDetection": "force"
+    },
+    "include": ["src/**/*.ts", "src/scripts/db/seed.ts", "src/scripts/db/migrate.mts"]
+}
