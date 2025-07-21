@@ -2,9 +2,13 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { asset } from '../asset/asset'
 import { categoryToGame } from '../category/categoryToGame'
+import { v7 as uuidv7 } from 'uuid'
 
 export const game = sqliteTable('game', {
-    id: text('id').primaryKey(),
+    id: text('id')
+        .primaryKey()
+        .notNull()
+        .$defaultFn(() => uuidv7()),
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     lastUpdated: integer('last_updated', { mode: 'timestamp' }).notNull(),

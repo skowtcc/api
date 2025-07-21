@@ -5,6 +5,7 @@ import { faker } from '@faker-js/faker'
 import { eq } from 'drizzle-orm'
 import type { InferInsertModel } from 'drizzle-orm'
 import { user, game, category, asset, tag, assetToTag, categoryToGame, savedAsset } from '~/lib/db/schema'
+import { v7 as uuidv7 } from 'uuid'
 
 type UserInsert = InferInsertModel<typeof user>
 type GameInsert = InferInsertModel<typeof game>
@@ -29,8 +30,6 @@ const client = createClient({
 
 const db = drizzleORM(client)
 
-const generateId = () => faker.string.alphanumeric(12)
-
 const pickRandom = <T>(arr: T[], count: number = 1): T[] => {
     const shuffled = [...arr].sort(() => 0.5 - Math.random())
     return shuffled.slice(0, count)
@@ -44,7 +43,6 @@ async function seed() {
         const users: UserInsert[] = []
         for (let i = 0; i < 10; i++) {
             const userData: UserInsert = {
-                id: generateId(),
                 name: faker.person.fullName(),
                 username: faker.internet.userName().toLowerCase(),
                 email: faker.internet.email().toLowerCase(),
@@ -61,7 +59,6 @@ async function seed() {
         console.log('Creating games...')
         const games: GameInsert[] = [
             {
-                id: generateId(),
                 slug: 'genshin-impact',
                 name: 'Genshin Impact',
                 lastUpdated: faker.date.recent({ days: 30 }),
@@ -69,7 +66,6 @@ async function seed() {
                 categoryCount: 0,
             },
             {
-                id: generateId(),
                 slug: 'honkai-impact-3rd',
                 name: 'Honkai Impact: 3rd',
                 lastUpdated: faker.date.recent({ days: 30 }),
@@ -77,7 +73,6 @@ async function seed() {
                 categoryCount: 0,
             },
             {
-                id: generateId(),
                 slug: 'honkai-star-rail',
                 name: 'Honkai Star Rail',
                 lastUpdated: faker.date.recent({ days: 30 }),
@@ -91,17 +86,14 @@ async function seed() {
         console.log('Creating categories...')
         const categories: CategoryInsert[] = [
             {
-                id: generateId(),
                 name: 'Character Sheets',
                 slug: 'character-sheets',
             },
             {
-                id: generateId(),
                 name: 'Splash Art',
                 slug: 'splash-art',
             },
             {
-                id: generateId(),
                 name: 'Emotes',
                 slug: 'emotes',
             },
@@ -114,8 +106,9 @@ async function seed() {
         for (const gameItem of games) {
             const randomCategories = pickRandom(categories, faker.number.int({ min: 1, max: 3 }))
             for (const categoryItem of randomCategories) {
+                if (!gameItem.id || !categoryItem.id) continue
                 categoryToGameLinks.push({
-                    id: generateId(),
+                    id: uuidv7(),
                     gameId: gameItem.id,
                     categoryId: categoryItem.id,
                 })
@@ -127,7 +120,6 @@ async function seed() {
         console.log('Creating tags...')
         const tagNames = ['fanmade', 'official', 'high-quality', 'unedited']
         const tags: TagInsert[] = tagNames.map(name => ({
-            id: generateId(),
             name: name.charAt(0).toUpperCase() + name.slice(1),
             slug: name.toLowerCase().replace(/\s+/g, '-'),
             color: faker.color.rgb(),
@@ -141,24 +133,24 @@ async function seed() {
 
         for (let i = 0; i < 50; i++) {
             const randomGame = pickRandom(games, 1)[0]
-            if (!randomGame) continue
+            if (!randomGame || !randomGame.id) continue
 
             const gameCategories = categoryToGameLinks
                 .filter(ctg => ctg.gameId === randomGame.id)
-                .map(ctg => categories.find(c => c.id === ctg.categoryId)!)
-                .filter(Boolean)
+                .map(ctg => categories.find(c => c.id === ctg.categoryId))
+                .filter((c): c is CategoryInsert => Boolean(c && c.id))
 
             if (gameCategories.length === 0) continue
 
             const randomCategory = pickRandom(gameCategories, 1)[0]
             const randomUser = pickRandom(users, 1)[0]
-            if (!randomCategory || !randomUser) continue
+            if (!randomCategory || !randomCategory.id || !randomUser || !randomUser.id) continue
 
             const randomExtension = pickRandom(fileExtensions, 1)[0]
             if (!randomExtension) continue
 
             const assetData: AssetInsert = {
-                id: generateId(),
+                id: uuidv7(),
                 name: faker.lorem.words({ min: 2, max: 5 }),
                 gameId: randomGame.id,
                 categoryId: randomCategory.id,
@@ -167,6 +159,7 @@ async function seed() {
                 downloadCount: faker.number.int({ min: 0, max: 10000 }),
                 viewCount: faker.number.int({ min: 0, max: 50000 }),
                 hash: faker.string.alphanumeric(32),
+                isSuggestive: faker.datatype.boolean(),
                 size: faker.number.int({ min: 100000, max: 10000000 }),
                 extension: randomExtension,
             }
@@ -180,8 +173,9 @@ async function seed() {
         for (const assetItem of assets) {
             const randomTags = pickRandom(tags, faker.number.int({ min: 1, max: 5 }))
             for (const tagItem of randomTags) {
+                if (!assetItem.id || !tagItem.id) continue
                 assetToTagLinks.push({
-                    id: generateId(),
+                    id: uuidv7(),
                     assetId: assetItem.id,
                     tagId: tagItem.id,
                 })
@@ -195,8 +189,9 @@ async function seed() {
         for (const userItem of users) {
             const randomAssets = pickRandom(assets, faker.number.int({ min: 0, max: 10 }))
             for (const assetItem of randomAssets) {
+                if (!userItem.id || !assetItem.id) continue
                 savedAssets.push({
-                    id: generateId(),
+                    id: uuidv7(),
                     userId: userItem.id,
                     assetId: assetItem.id,
                     createdAt: faker.date.recent({ days: 30 }),
@@ -208,9 +203,9 @@ async function seed() {
 
         console.log('Updating game statistics...')
         for (const gameItem of games) {
+            if (!gameItem.id) continue
             const gameAssets = assets.filter(a => a.gameId === gameItem.id)
             const gameCategories = categoryToGameLinks.filter(ctg => ctg.gameId === gameItem.id)
-
             await db
                 .update(game)
                 .set({

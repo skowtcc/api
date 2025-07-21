@@ -2,9 +2,12 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { user } from '../user'
 import { asset } from './asset'
+import { v7 as uuidv7 } from 'uuid'
 
 export const savedAsset = sqliteTable('saved_asset', {
-    id: text('id').primaryKey(),
+    id: text('id')
+        .primaryKey()
+        .$defaultFn(() => uuidv7()),
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),

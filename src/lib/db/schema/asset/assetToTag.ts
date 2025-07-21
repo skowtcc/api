@@ -2,9 +2,12 @@ import { sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { asset } from './asset'
 import { tag } from './tag'
+import { v7 as uuidv7 } from 'uuid'
 
 export const assetToTag = sqliteTable('asset_to_tag', {
-    id: text('id').primaryKey(),
+    id: text('id')
+        .primaryKey()
+        .$defaultFn(() => uuidv7()),
     assetId: text('asset_id').notNull(),
     tagId: text('tag_id').notNull(),
 })

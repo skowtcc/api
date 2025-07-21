@@ -28,6 +28,7 @@ const responseSchema = z.object({
         size: z.number(),
         extension: z.string(),
         createdAt: z.string(),
+        isSuggestive: z.boolean(),
         game: z.object({
             id: z.string(),
             slug: z.string(),
@@ -98,6 +99,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     categoryId: category.id,
                     categoryName: category.name,
                     categorySlug: category.slug,
+                    isSuggestive: asset.isSuggestive,
                 })
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
@@ -136,6 +138,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                 size: assetData.size,
                 extension: assetData.extension,
                 createdAt: assetData.createdAt.toISOString(),
+                isSuggestive: assetData.isSuggestive,
                 game: {
                     id: assetData.gameId,
                     slug: assetData.gameSlug,

@@ -5,9 +5,12 @@ import { category } from '../category/category'
 import { assetToTag } from './assetToTag'
 import { savedAsset } from './savedAsset'
 import { user } from '../user'
+import { v7 as uuidv7 } from 'uuid'
 
 export const asset = sqliteTable('asset', {
-    id: text('id').primaryKey(),
+    id: text('id')
+        .primaryKey()
+        .$defaultFn(() => uuidv7()),
     name: text('name').notNull(),
     gameId: text('game_id').notNull(),
     categoryId: text('category_id').notNull(),
@@ -17,6 +20,8 @@ export const asset = sqliteTable('asset', {
         .references(() => user.id),
     downloadCount: integer('download_count').notNull().default(0),
     viewCount: integer('view_count').notNull().default(0),
+    // like nsfw, ish? may be triggering. better to just say 'suggestive'.
+    isSuggestive: integer('is_suggestive', { mode: 'boolean' }).notNull().default(false),
     hash: text('hash').notNull(),
     size: integer('size').notNull(),
     extension: text('extension').notNull(), // i.e .png..

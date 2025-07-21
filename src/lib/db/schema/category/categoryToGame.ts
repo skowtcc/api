@@ -2,9 +2,12 @@ import { sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { game } from '../game/game'
 import { category } from '../category/category'
+import { v7 as uuidv7 } from 'uuid'
 
 export const categoryToGame = sqliteTable('category_to_game', {
-    id: text('id').primaryKey(),
+    id: text('id')
+        .primaryKey()
+        .$defaultFn(() => uuidv7()),
     gameId: text('game_id').notNull(),
     categoryId: text('category_id').notNull(),
 })
