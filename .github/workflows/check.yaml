@@ -1,0 +1,57 @@
+name: Check Code
+
+on:
+    push:
+        branches:
+            - 'dev'
+
+concurrency:
+    group: ${{ github.job }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    prettier:
+        name: Prettier
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24.1.0
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10.11.0
+
+            - name: Install dependencies
+              run: pnpm i
+
+            - name: Prettier check
+              run: pnpm run prettier:check
+
+    typecheck:
+        name: Typecheck
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24.1.0
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10.11.0
+
+            - name: Install dependencies
+              run: pnpm i
+
+            - name: Typecheck
+              run: pnpm run typecheck
