@@ -2,14 +2,9 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { getConnection } from '~/lib/db/connection'
 import * as schema from '~/lib/db/schema'
+import { Env } from '~/lib/handler'
 
-export function createAuth(env: {
-    BETTER_AUTH_SECRET: string
-    BETTER_AUTH_URL: string
-    TURSO_DATABASE_URL: string
-    TURSO_DATABASE_AUTH_TOKEN?: string
-    ENVIRONMENT?: string
-}) {
+export function createAuth(env: Env) {
     const db = getConnection(env)
 
     return betterAuth({
