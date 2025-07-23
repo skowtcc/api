@@ -2,11 +2,11 @@ name: Run DB Test
 on:
     push:
         branches:
-            - '*'
+            - 'dev'
 
 jobs:
     tests:
-        name: Tests
+        name: DB Test
         runs-on: ubuntu-latest
         timeout-minutes: 5
 
@@ -26,9 +26,13 @@ jobs:
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
+              with:
+                  node-version: 24.1.0
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
+              with:
+                  version: 10.11.0
 
             - name: Install dependencies
               run: pnpm i
