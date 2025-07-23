@@ -5,10 +5,10 @@ import * as schema from '~/lib/db/schema'
 import { Env } from '~/lib/handler'
 
 export function createAuth(env: Env) {
-    const db = getConnection(env)
+    const { drizzle } = getConnection(env)
 
     return betterAuth({
-        database: drizzleAdapter(db, {
+        database: drizzleAdapter(drizzle, {
             provider: 'sqlite',
             schema: {
                 ...schema,

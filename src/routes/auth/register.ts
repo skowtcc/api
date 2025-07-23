@@ -71,8 +71,6 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
         const { email, password, name, username } = ctx.req.valid('json')
         const auth = ctx.get('auth')
 
-        console.log('does this work?')
-
         const { drizzle } = getConnection(ctx.env)
 
         try {
@@ -84,9 +82,7 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
                 .from(user)
                 .where(eq(user.username, username))
 
-            console.log('hello!')
-
-            if (existingUser?.username) {
+            if (existingUser) {
                 return ctx.json(
                     {
                         success: false,
