@@ -4,8 +4,10 @@ import { game } from '../game/game'
 import { category } from '../category/category'
 import { assetToTag } from './assetToTag'
 import { savedAsset } from './savedAsset'
-import { user } from '../user'
+import { user } from '../user/user'
 import { v7 as uuidv7 } from 'uuid'
+import { assetLink } from './assetLink'
+import { downloadHistoryToAsset } from './downloadHistory'
 
 export const asset = sqliteTable('asset', {
     id: text('id')
@@ -22,6 +24,9 @@ export const asset = sqliteTable('asset', {
     viewCount: integer('view_count').notNull().default(0),
     // like nsfw, ish? may be triggering. better to just say 'suggestive'.
     isSuggestive: integer('is_suggestive', { mode: 'boolean' }).notNull().default(false),
+    status: text('status', { enum: ['pending', 'approved', 'denied'] })
+        .notNull()
+        .default('pending'),
     hash: text('hash').notNull(),
     size: integer('size').notNull(),
     extension: text('extension').notNull(), // i.e .png..
@@ -44,6 +49,9 @@ export const assetRelations = relations(asset, ({ one, many }) => ({
         fields: [asset.uploadedBy],
         references: [user.id],
     }),
+    downloadHistoryToAsset: many(downloadHistoryToAsset),
     tagLinks: many(assetToTag),
     savedByUsers: many(savedAsset),
+    assetLink: many(assetLink, { relationName: 'assetLink' }),
+    toAssetLink: many(assetLink, { relationName: 'toAssetLink' }),
 }))

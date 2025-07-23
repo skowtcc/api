@@ -55,3 +55,25 @@ export const requireAuth = createMiddleware<{
 
     await next()
 })
+
+export const requireAdminOrContributor = createMiddleware<{
+    Bindings: Env
+    Variables: AuthVariables
+}>(async (ctx, next) => {
+    const user = ctx.get('user')
+    if (!user || (user.role !== 'admin' && user.role !== 'contributor')) {
+        throw new Error('Forbidden: Only admin or contributor can access this route')
+    }
+    await next()
+})
+
+export const requireAdmin = createMiddleware<{
+    Bindings: Env
+    Variables: AuthVariables
+}>(async (ctx, next) => {
+    const user = ctx.get('user')
+    if (!user || user.role !== 'admin') {
+        throw new Error('Forbidden: Only admin can access this route')
+    }
+    await next()
+})

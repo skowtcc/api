@@ -10,15 +10,14 @@ import { user } from '~/lib/db/schema'
 const bodySchema = z.object({
     name: z.string().min(1).optional().openapi({
         description: "User's display name",
-        example: 'John Doe',
+        example: 'Display Name',
     }),
     username: z.string().min(3).optional().openapi({
-        description: "User's unique username",
-        example: 'johndoe',
+        description: "User's username",
+        example: 'username',
     }),
-    image: z.string().url().optional().openapi({
-        description: "User's profile picture URL",
-        example: 'https://example.com/avatar.jpg',
+    image: z.any().optional().openapi({
+        description: "User's profile picture",
     }),
 })
 
@@ -101,6 +100,8 @@ export const AuthUpdateProfileRoute = (handler: AppHandler) => {
                 .set(updateData)
                 .where(eq(user.id, currentUser.id))
                 .returning()
+
+            // TODO: PLEASEE add R2 support to upload images. donm't forget
 
             const updatedUser = updatedUsers[0]!
 

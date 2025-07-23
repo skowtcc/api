@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
 import { like, and, eq, inArray, sql, type SQL } from 'drizzle-orm'
-import { asset, assetToTag, category, game, tag } from '~/lib/db/schema'
+import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 
@@ -97,7 +97,6 @@ const responseSchema = z.object({
             size: z.number(),
             extension: z.string(),
             createdAt: z.string(),
-            isSuggestive: z.boolean(),
             tags: z.array(
                 z.object({
                     id: z.string(),
@@ -106,6 +105,11 @@ const responseSchema = z.object({
                     color: z.string().nullable(),
                 }),
             ),
+            uploadedBy: z.object({
+                id: z.string(),
+                username: z.string().nullable(),
+                image: z.string().nullable(),
+            }),
         }),
     ),
     pagination: z.object({
@@ -222,11 +226,12 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     extension: asset.extension,
                     createdAt: asset.createdAt,
                     isSuggestive: asset.isSuggestive,
+                    uploadedBy: asset.uploadedBy,
                 })
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
                 .innerJoin(category, eq(asset.categoryId, category.id))
-                .where(conditions.length > 0 ? and(...conditions) : undefined)
+                .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
 
             const countQuery = drizzle
                 .select({ count: sql<number>`COUNT(*)` })
@@ -275,10 +280,25 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 {} as Record<string, any[]>,
             )
 
+            const uploaderIds = assets.map(a => a.uploadedBy)
+            const uploaders =
+                uploaderIds.length > 0
+                    ? await drizzle
+                          .select({
+                              id: user.id,
+                              username: user.username,
+                              image: user.image,
+                          })
+                          .from(user)
+                          .where(inArray(user.id, uploaderIds))
+                    : []
+            const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
+
             const formattedAssets = assets.map(asset => ({
                 ...asset,
                 createdAt: asset.createdAt.toISOString(),
                 tags: tagsByAsset[asset.id] || [],
+                uploadedBy: uploaderMap[asset.uploadedBy] || { id: asset.uploadedBy, username: null, image: null },
             }))
 
             return ctx.json(

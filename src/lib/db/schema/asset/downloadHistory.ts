@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-import { user } from '../user'
+import { user } from '../user/user'
 import { asset } from './asset'
 import { v7 as uuidv7 } from 'uuid'
 

@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
 import { eq } from 'drizzle-orm'
-import { asset, assetToTag, category, game, tag } from '~/lib/db/schema'
+import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 
@@ -29,6 +29,11 @@ const responseSchema = z.object({
         extension: z.string(),
         createdAt: z.string(),
         isSuggestive: z.boolean(),
+        uploadedBy: z.object({
+            id: z.string(),
+            username: z.string().nullable(),
+            image: z.string().nullable(),
+        }),
         game: z.object({
             id: z.string(),
             slug: z.string(),
@@ -100,6 +105,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     categoryName: category.name,
                     categorySlug: category.slug,
                     isSuggestive: asset.isSuggestive,
+                    uploadedBy: user.id,
                 })
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
@@ -130,6 +136,16 @@ export const AssetIdRoute = (handler: AppHandler) => {
                 .innerJoin(tag, eq(assetToTag.tagId, tag.id))
                 .where(eq(assetToTag.assetId, id))
 
+            const uploader = await drizzle
+                .select({
+                    id: user.id,
+                    username: user.username,
+                    image: user.image,
+                })
+                .from(user)
+                .where(eq(user.id, assetData.uploadedBy))
+                .then(rows => rows[0] || { id: assetData.uploadedBy, username: null, image: null })
+
             const formattedAsset = {
                 id: assetData.id,
                 name: assetData.name,
@@ -139,6 +155,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                 extension: assetData.extension,
                 createdAt: assetData.createdAt.toISOString(),
                 isSuggestive: assetData.isSuggestive,
+                uploadedBy: uploader,
                 game: {
                     id: assetData.gameId,
                     slug: assetData.gameSlug,

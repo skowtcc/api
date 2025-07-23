@@ -1,7 +1,8 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import { savedAsset } from './asset/savedAsset'
+import { savedAsset } from '../asset/savedAsset'
 import { v7 as uuidv7 } from 'uuid'
+import { downloadHistory } from '../asset/downloadHistory'
 
 export const user = sqliteTable('user', {
     id: text('id')
@@ -18,6 +19,9 @@ export const user = sqliteTable('user', {
     updatedAt: integer('updated_at', { mode: 'timestamp' })
         .notNull()
         .$defaultFn(() => new Date()),
+    role: text('role', { enum: ['user', 'admin', 'contributor'] })
+        .notNull()
+        .default('user'),
 })
 
 export const session = sqliteTable('session', {
@@ -89,6 +93,7 @@ export const userRelations = relations(user, ({ many }) => ({
     sessions: many(session),
     accounts: many(account),
     savedAssets: many(savedAsset),
+    downloadHistory: many(downloadHistory),
 }))
 
 export const sessionRelations = relations(session, ({ one }) => ({
