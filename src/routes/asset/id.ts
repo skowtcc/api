@@ -40,7 +40,6 @@ const responseSchema = z.object({
             name: z.string(),
             lastUpdated: z.string(),
             assetCount: z.number(),
-            categoryCount: z.number(),
         }),
         category: z.object({
             id: z.string(),
@@ -100,7 +99,6 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     gameName: game.name,
                     gameLastUpdated: game.lastUpdated,
                     gameAssetCount: game.assetCount,
-                    gameCategoryCount: game.categoryCount,
                     categoryId: category.id,
                     categoryName: category.name,
                     categorySlug: category.slug,
@@ -162,7 +160,6 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     name: assetData.gameName,
                     lastUpdated: assetData.gameLastUpdated.toISOString(),
                     assetCount: assetData.gameAssetCount,
-                    categoryCount: assetData.gameCategoryCount,
                 },
                 category: {
                     id: assetData.categoryId,

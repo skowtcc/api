@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
 import { eq } from 'drizzle-orm'
-import { category, categoryToGame, game } from '~/lib/db/schema'
+import { category, game } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 
@@ -15,14 +15,6 @@ const responseSchema = z.object({
             name: z.string(),
             lastUpdated: z.string(),
             assetCount: z.number(),
-            categoryCount: z.number(),
-            categories: z.array(
-                z.object({
-                    id: z.string(),
-                    name: z.string(),
-                    slug: z.string(),
-                }),
-            ),
         }),
     ),
 })
@@ -53,46 +45,29 @@ export const GameAllRoute = (handler: AppHandler) => {
         try {
             const games = await drizzle.select().from(game)
 
-            const gameCategories = await drizzle
-                .select({
-                    gameId: categoryToGame.gameId,
-                    categoryId: category.id,
-                    categoryName: category.name,
-                    categorySlug: category.slug,
-                })
-                .from(categoryToGame)
-                .innerJoin(category, eq(categoryToGame.categoryId, category.id))
-
-            const categoriesByGame = gameCategories.reduce(
-                (acc, link) => {
-                    if (!acc[link.gameId]) {
-                        acc[link.gameId] = []
-                    }
-                    acc[link.gameId]!.push({
-                        id: link.categoryId,
-                        name: link.categoryName,
-                        slug: link.categorySlug,
-                    })
-                    return acc
-                },
-                {} as Record<string, any[]>,
-            )
+            if (!games) {
+                return ctx.json(
+                    {
+                        success: true,
+                        games: [],
+                    },
+                    200,
+                )
+            }
 
             const formattedGames = games.map(g => ({
                 ...g,
                 lastUpdated: g.lastUpdated.toISOString(),
-                categories: categoriesByGame[g.id] || [],
             }))
 
             return ctx.json(
                 {
                     success: true,
-                    games: formattedGames,
+                    games: formattedGames || [],
                 },
                 200,
             )
         } catch (error) {
-            console.error('Game list error:', error)
             return ctx.json(
                 {
                     success: false,

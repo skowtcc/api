@@ -70,12 +70,23 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
     handler.openapi(openRoute, async ctx => {
         const { email, password, name, username } = ctx.req.valid('json')
         const auth = ctx.get('auth')
+
+        console.log('does this work?')
+
         const { drizzle } = getConnection(ctx.env)
 
         try {
-            const existingUser = await drizzle.select().from(user).where(eq(user.username, username)).limit(1)
+            const [existingUser] = await drizzle
+                .select({
+                    id: user.id,
+                    username: user.username,
+                })
+                .from(user)
+                .where(eq(user.username, username))
 
-            if (existingUser.length > 0) {
+            console.log('hello!')
+
+            if (existingUser?.username) {
                 return ctx.json(
                     {
                         success: false,

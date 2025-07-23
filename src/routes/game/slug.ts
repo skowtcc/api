@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
 import { eq } from 'drizzle-orm'
-import { category, categoryToGame, game } from '~/lib/db/schema'
+import { game } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 
@@ -26,14 +26,6 @@ const responseSchema = z.object({
         name: z.string(),
         lastUpdated: z.string(),
         assetCount: z.number(),
-        categoryCount: z.number(),
-        categories: z.array(
-            z.object({
-                id: z.string(),
-                name: z.string(),
-                slug: z.string(),
-            }),
-        ),
     }),
 })
 
@@ -79,24 +71,9 @@ export const GameSlugRoute = (handler: AppHandler) => {
 
             const gameData = gameResult[0]!
 
-            const gameCategories = await drizzle
-                .select({
-                    categoryId: category.id,
-                    categoryName: category.name,
-                    categorySlug: category.slug,
-                })
-                .from(categoryToGame)
-                .innerJoin(category, eq(categoryToGame.categoryId, category.id))
-                .where(eq(categoryToGame.gameId, gameData.id))
-
             const formattedGame = {
                 ...gameData,
                 lastUpdated: gameData.lastUpdated.toISOString(),
-                categories: gameCategories.map(cat => ({
-                    id: cat.categoryId,
-                    name: cat.categoryName,
-                    slug: cat.categorySlug,
-                })),
             }
 
             return ctx.json(

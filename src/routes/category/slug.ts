@@ -2,7 +2,7 @@ import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
 import { eq } from 'drizzle-orm'
-import { category, categoryToGame, game } from '~/lib/db/schema'
+import { category, game } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 
@@ -24,16 +24,6 @@ const responseSchema = z.object({
         id: z.string(),
         name: z.string(),
         slug: z.string(),
-        games: z.array(
-            z.object({
-                id: z.string(),
-                slug: z.string(),
-                name: z.string(),
-                lastUpdated: z.string(),
-                assetCount: z.number(),
-                categoryCount: z.number(),
-            }),
-        ),
     }),
 })
 
@@ -65,9 +55,9 @@ export const CategorySlugRoute = (handler: AppHandler) => {
         const { drizzle } = getConnection(ctx.env)
 
         try {
-            const categoryResult = await drizzle.select().from(category).where(eq(category.slug, slug)).limit(1)
+            const [categoryResult] = await drizzle.select().from(category).where(eq(category.slug, slug)).limit(1)
 
-            if (categoryResult.length === 0) {
+            if (!categoryResult) {
                 return ctx.json(
                     {
                         success: false,
@@ -77,37 +67,10 @@ export const CategorySlugRoute = (handler: AppHandler) => {
                 )
             }
 
-            const categoryData = categoryResult[0]!
-
-            const categoryGames = await drizzle
-                .select({
-                    gameId: game.id,
-                    gameSlug: game.slug,
-                    gameName: game.name,
-                    gameLastUpdated: game.lastUpdated,
-                    gameAssetCount: game.assetCount,
-                    gameCategoryCount: game.categoryCount,
-                })
-                .from(categoryToGame)
-                .innerJoin(game, eq(categoryToGame.gameId, game.id))
-                .where(eq(categoryToGame.categoryId, categoryData.id))
-
-            const formattedCategory = {
-                ...categoryData,
-                games: categoryGames.map(gameData => ({
-                    id: gameData.gameId,
-                    slug: gameData.gameSlug,
-                    name: gameData.gameName,
-                    lastUpdated: gameData.gameLastUpdated.toISOString(),
-                    assetCount: gameData.gameAssetCount,
-                    categoryCount: gameData.gameCategoryCount,
-                })),
-            }
-
             return ctx.json(
                 {
                     success: true,
-                    category: formattedCategory,
+                    category: categoryResult,
                 },
                 200,
             )

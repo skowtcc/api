@@ -6,7 +6,6 @@ export * from './asset/savedAsset'
 export * from './asset/tag'
 
 export * from './category/category'
-export * from './category/categoryToGame'
 
 export * from './game/game'
 
