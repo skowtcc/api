@@ -14,8 +14,12 @@ export const asset = sqliteTable('asset', {
         .primaryKey()
         .$defaultFn(() => uuidv7()),
     name: text('name').notNull(),
-    gameId: text('game_id').notNull().references(() => game.id, { onDelete: 'cascade' }),
-    categoryId: text('category_id').notNull().references(() => category.id, { onDelete: 'cascade' }),
+    gameId: text('game_id')
+        .notNull()
+        .references(() => game.id, { onDelete: 'cascade' }),
+    categoryId: text('category_id')
+        .notNull()
+        .references(() => category.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     uploadedBy: text('uploaded_by')
         .notNull()

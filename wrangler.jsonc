@@ -16,10 +16,10 @@
     //   }
     // ],
     "r2_buckets": [
-      {
-        "binding": "CDN",
-        "bucket_name": "cdn-asset-site"
-      }
+        {
+            "binding": "CDN",
+            "bucket_name": "cdn-asset-site",
+        },
     ],
     // "d1_databases": [
     //   {
