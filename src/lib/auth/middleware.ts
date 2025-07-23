@@ -25,6 +25,7 @@ export const authMiddleware = createMiddleware<{
         BETTER_AUTH_URL: c.env.BETTER_AUTH_URL,
         TURSO_DATABASE_URL: c.env.TURSO_DATABASE_URL,
         TURSO_DATABASE_AUTH_TOKEN: c.env.TURSO_DATABASE_AUTH_TOKEN,
+        CDN: c.env.CDN,
     })
 
     c.set('auth', auth)
