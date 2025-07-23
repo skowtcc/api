@@ -10,10 +10,10 @@ export const assetLink = sqliteTable('asset_link', {
         .$defaultFn(() => uuidv7()),
     assetId: text('asset_id')
         .notNull()
-        .references(() => asset.id),
+        .references(() => asset.id, { onDelete: 'cascade' }),
     toAssetId: text('to_asset_id')
         .notNull()
-        .references(() => asset.id),
+        .references(() => asset.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 })
 

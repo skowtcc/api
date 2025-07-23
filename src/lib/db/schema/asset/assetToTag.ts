@@ -8,8 +8,8 @@ export const assetToTag = sqliteTable('asset_to_tag', {
     id: text('id')
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-    assetId: text('asset_id').notNull(),
-    tagId: text('tag_id').notNull(),
+    assetId: text('asset_id').notNull().references(() => asset.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id').notNull().references(() => tag.id, { onDelete: 'cascade' }),
 })
 
 export const assetToTagAssetIdx = index('att_asset_idx').on(assetToTag.assetId)

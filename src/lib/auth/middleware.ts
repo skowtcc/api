@@ -7,6 +7,7 @@ export interface Env {
     TURSO_DATABASE_URL: string
     TURSO_DATABASE_AUTH_TOKEN?: string
     DISCORD_WEBHOOK?: string
+    CDN: R2Bucket
 }
 
 export interface AuthVariables {

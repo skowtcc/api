@@ -7,16 +7,42 @@ CREATE TABLE `asset` (
 	`uploaded_by` text NOT NULL,
 	`download_count` integer DEFAULT 0 NOT NULL,
 	`view_count` integer DEFAULT 0 NOT NULL,
+	`is_suggestive` integer DEFAULT false NOT NULL,
+	`status` text DEFAULT 'pending' NOT NULL,
 	`hash` text NOT NULL,
 	`size` integer NOT NULL,
 	`extension` text NOT NULL,
 	FOREIGN KEY (`uploaded_by`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `asset_link` (
+	`id` text PRIMARY KEY NOT NULL,
+	`asset_id` text NOT NULL,
+	`to_asset_id` text NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`asset_id`) REFERENCES `asset`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`to_asset_id`) REFERENCES `asset`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `asset_to_tag` (
 	`id` text PRIMARY KEY NOT NULL,
 	`asset_id` text NOT NULL,
 	`tag_id` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `download_history` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `download_history_to_asset` (
+	`id` text PRIMARY KEY NOT NULL,
+	`download_history_id` text NOT NULL,
+	`asset_id` text NOT NULL,
+	FOREIGN KEY (`download_history_id`) REFERENCES `download_history`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`asset_id`) REFERENCES `asset`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `saved_asset` (
@@ -97,7 +123,8 @@ CREATE TABLE `user` (
 	`email_verified` integer DEFAULT false NOT NULL,
 	`image` text,
 	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL
+	`updated_at` integer NOT NULL,
+	`role` text DEFAULT 'user' NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `user_username_unique` ON `user` (`username`);--> statement-breakpoint

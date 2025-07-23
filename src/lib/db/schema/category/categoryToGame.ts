@@ -8,8 +8,8 @@ export const categoryToGame = sqliteTable('category_to_game', {
     id: text('id')
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-    gameId: text('game_id').notNull(),
-    categoryId: text('category_id').notNull(),
+    gameId: text('game_id').notNull().references(() => game.id, { onDelete: 'cascade' }),
+    categoryId: text('category_id').notNull().references(() => category.id, { onDelete: 'cascade' }),
 })
 
 export const categoryToGameGameIdx = index('ctg_game_idx').on(categoryToGame.gameId)

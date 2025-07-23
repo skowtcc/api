@@ -15,12 +15,12 @@
     //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     //   }
     // ],
-    // "r2_buckets": [
-    //   {
-    //     "binding": "MY_BUCKET",
-    //     "bucket_name": "my-bucket"
-    //   }
-    // ],
+    "r2_buckets": [
+      {
+        "binding": "CDN",
+        "bucket_name": "cdn-asset-site"
+      }
+    ],
     // "d1_databases": [
     //   {
     //     "binding": "MY_DB",
