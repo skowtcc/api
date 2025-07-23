@@ -1,0 +1,42 @@
+name: Run DB Test
+on:
+    push:
+        branches:
+            - '*'
+
+jobs:
+    tests:
+        name: Tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+
+        services:
+            sqld:
+                image: ghcr.io/libsql/sqld:latest
+                ports:
+                    - 8080:8080
+
+        env:
+            ENVIRONMENT: DEV
+            TURSO_DEV_DATABASE_URL: http://127.0.0.1:8080
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Install dependencies
+              run: pnpm i
+
+            - name: Create .dev.vars file
+              run: |
+                  echo ENVIRONMENT=$ENVIRONMENT >> .dev.vars
+                  echo TURSO_DEV_DATABASE_URL=$TURSO_DEV_DATABASE_URL >> .dev.vars
+
+            - name: Initialize Drizzle
+              run: pnpm run drizzle:dev:init
