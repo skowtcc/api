@@ -52,7 +52,7 @@ const openRoute = createRoute({
 })
 
 export const UserSavedAssetsListRoute = (handler: AppHandler) => {
-    handler.use('/user/saved-assets', requireAuth)
+    handler.use('/saved-assets', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
         const currentUser = ctx.get('user')

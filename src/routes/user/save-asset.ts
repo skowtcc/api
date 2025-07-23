@@ -7,8 +7,12 @@ import { getConnection } from '~/lib/db/connection'
 import { eq, and } from 'drizzle-orm'
 import { asset, savedAsset } from '~/lib/db/schema'
 
-const bodySchema = z.object({
-    assetId: z.string().openapi({
+const paramsSchema = z.object({
+    id: z.string().openapi({
+        param: {
+            name: 'id',
+            in: 'path',
+        },
         description: 'ID of the asset to save',
         example: 'asset_123',
     }),
@@ -27,19 +31,13 @@ const responseSchema = z.object({
 })
 
 const openRoute = createRoute({
-    path: '/saved-assets',
+    path: '/saved-assets/{id}',
     method: 'post',
     summary: 'Save asset',
     description: "Save an asset to the current user's collection.",
     tags: ['User'],
     request: {
-        body: {
-            content: {
-                'application/json': {
-                    schema: bodySchema,
-                },
-            },
-        },
+        params: paramsSchema,
     },
     responses: {
         201: {
@@ -55,10 +53,10 @@ const openRoute = createRoute({
 })
 
 export const UserSaveAssetRoute = (handler: AppHandler) => {
-    handler.use('/user/saved-assets', requireAuth)
+    handler.use('/saved-assets/*', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
-        const { assetId } = ctx.req.valid('json')
+        const { id: assetId } = ctx.req.valid('param')
         const currentUser = ctx.get('user')
         const { drizzle } = getConnection(ctx.env)
 

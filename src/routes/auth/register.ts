@@ -5,6 +5,7 @@ import { GenericResponses } from '~/lib/response-schemas'
 import { getConnection } from '~/lib/db/connection'
 import { user } from '~/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { setCookie } from 'hono/cookie'
 
 const bodySchema = z.object({
     email: z.string().email().openapi({
@@ -17,11 +18,11 @@ const bodySchema = z.object({
     }),
     name: z.string().min(1).openapi({
         description: "User's display name",
-        example: 'John Doe',
+        example: 'display name',
     }),
     username: z.string().min(3).openapi({
         description: "User's unique username (required)",
-        example: 'johndoe',
+        example: 'username',
     }),
 })
 
@@ -98,9 +99,12 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
                     password,
                     name,
                 },
+                asResponse: true,
             })
 
-            if (!result.user) {
+            const authData = (await result.json()) as any
+
+            if (!authData.user) {
                 return ctx.json(
                     {
                         success: false,
@@ -116,26 +120,41 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
                     username,
                     updatedAt: new Date(),
                 })
-                .where(eq(user.id, result.user.id))
+                .where(eq(user.id, authData.user.id))
                 .returning()
 
             const finalUsername = updatedUsers.length > 0 ? updatedUsers[0]!.username : username
+
+            const cookieHeaders = result.headers.get('set-cookie')
+            if (cookieHeaders) {
+                const cookieMatches = cookieHeaders.match(/([^=]+)=([^;]+)/)
+                if (cookieMatches && cookieMatches[1] && cookieMatches[2]) {
+                    const name = cookieMatches[1].trim()
+                    const value = cookieMatches[2].trim()
+                    setCookie(ctx, name, value, {
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'Lax',
+                        path: '/',
+                        maxAge: 60 * 60 * 24 * 30,
+                    })
+                }
+            }
 
             return ctx.json(
                 {
                     success: true,
                     message: 'User registered successfully',
                     user: {
-                        id: result.user.id,
-                        email: result.user.email,
-                        name: result.user.name,
+                        id: authData.user.id,
+                        email: authData.user.email,
+                        name: authData.user.name,
                         username: finalUsername,
                     },
                 },
                 201,
             )
         } catch (error: any) {
-            console.error('Registration error:', error)
             return ctx.json(
                 {
                     success: false,

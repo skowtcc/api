@@ -65,7 +65,7 @@ const openRoute = createRoute({
 })
 
 export const AuthUpdateProfileRoute = (handler: AppHandler) => {
-    handler.use('/auth/profile', requireAuth)
+    handler.use('/profile', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
         const { name, username, image } = ctx.req.valid('json')
@@ -100,8 +100,6 @@ export const AuthUpdateProfileRoute = (handler: AppHandler) => {
                 .set(updateData)
                 .where(eq(user.id, currentUser.id))
                 .returning()
-
-            // TODO: PLEASEE add R2 support to upload images. donm't forget
 
             const updatedUser = updatedUsers[0]!
 

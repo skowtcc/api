@@ -123,6 +123,7 @@ async function seed() {
                 downloadCount: faker.number.int({ min: 0, max: 10000 }),
                 viewCount: faker.number.int({ min: 0, max: 50000 }),
                 hash: faker.string.alphanumeric(32),
+                status: 'approved',
                 isSuggestive: faker.datatype.boolean(),
                 size: faker.number.int({ min: 100000, max: 10000000 }),
                 extension: randomExtension,

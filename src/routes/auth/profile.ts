@@ -38,7 +38,7 @@ const openRoute = createRoute({
 })
 
 export const AuthProfileRoute = (handler: AppHandler) => {
-    handler.use('/auth/profile', requireAuth)
+    handler.use('/profile', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
         const user = ctx.get('user')
@@ -61,7 +61,6 @@ export const AuthProfileRoute = (handler: AppHandler) => {
                 200,
             )
         } catch (error: any) {
-            console.error('Profile error:', error)
             return ctx.json(
                 {
                     success: false,

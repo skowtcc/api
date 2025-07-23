@@ -5,6 +5,7 @@ import { GenericResponses } from '~/lib/response-schemas'
 import { getConnection } from '~/lib/db/connection'
 import { user } from '~/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { setCookie } from 'hono/cookie'
 
 const bodySchema = z.object({
     email: z.string().email().openapi({
@@ -70,9 +71,12 @@ export const AuthLoginRoute = (handler: AppHandler) => {
                     email,
                     password,
                 },
+                asResponse: true,
             })
 
-            if (!result.user) {
+            const authData = (await result.json()) as any
+
+            if (!authData.user) {
                 return ctx.json(
                     {
                         success: false,
@@ -82,25 +86,40 @@ export const AuthLoginRoute = (handler: AppHandler) => {
                 )
             }
 
-            const dbUser = await drizzle.select().from(user).where(eq(user.id, result.user.id)).limit(1)
+            const dbUser = await drizzle.select().from(user).where(eq(user.id, authData.user.id)).limit(1)
 
             const username = dbUser.length > 0 ? dbUser[0]!.username : null
+
+            const cookieHeaders = result.headers.get('set-cookie')
+            if (cookieHeaders) {
+                const cookieMatches = cookieHeaders.match(/([^=]+)=([^;]+)/)
+                if (cookieMatches && cookieMatches[1] && cookieMatches[2]) {
+                    const name = cookieMatches[1].trim()
+                    const value = cookieMatches[2].trim()
+                    setCookie(ctx, name, value, {
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'Lax',
+                        path: '/',
+                        maxAge: 60 * 60 * 24 * 7,
+                    })
+                }
+            }
 
             return ctx.json(
                 {
                     success: true,
                     message: 'Login successful',
                     user: {
-                        id: result.user.id,
-                        email: result.user.email,
-                        name: result.user.name,
+                        id: authData.user.id,
+                        email: authData.user.email,
+                        name: authData.user.name,
                         username: username,
                     },
                 },
                 200,
             )
         } catch (error: any) {
-            console.error('Login error:', error)
             return ctx.json(
                 {
                     success: false,

@@ -47,7 +47,7 @@ const openRoute = createRoute({
 })
 
 export const UserUnsaveAssetRoute = (handler: AppHandler) => {
-    handler.use('/user/saved-assets/*', requireAuth)
+    handler.use('/saved-assets/*', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
         const { assetId } = ctx.req.valid('param')

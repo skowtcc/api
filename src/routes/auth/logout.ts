@@ -3,6 +3,7 @@ import { AppHandler } from '~/lib/handler'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 import { requireAuth } from '~/lib/auth/middleware'
+import { deleteCookie } from 'hono/cookie'
 
 const responseSchema = z.object({
     success: z.boolean(),
@@ -10,7 +11,7 @@ const responseSchema = z.object({
 })
 
 const openRoute = createRoute({
-    path: '/auth/logout',
+    path: '/logout',
     method: 'post',
     summary: 'Logout user',
     description: 'Logout the current user session.',
@@ -46,6 +47,12 @@ export const AuthLogoutRoute = (handler: AppHandler) => {
                 headers,
             })
 
+            deleteCookie(ctx, 'better-auth.session_token', {
+                path: '/',
+                secure: true,
+                sameSite: 'Lax',
+            })
+
             return ctx.json(
                 {
                     success: true,
@@ -54,7 +61,6 @@ export const AuthLogoutRoute = (handler: AppHandler) => {
                 200,
             )
         } catch (error: any) {
-            console.error('Logout error:', error)
             return ctx.json(
                 {
                     success: false,
