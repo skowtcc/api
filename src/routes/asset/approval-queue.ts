@@ -103,9 +103,47 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
 export const AssetApproveRoute = (handler: AppHandler) => {
     handler.use('/:id/approve', requireAuth, requireAdmin)
     handler.openapi(approveRoute, async ctx => {
-        const { drizzle } = getConnection(ctx.env)
+        const user = ctx.get('user')
+
         const id = ctx.req.param('id')
+
+        const { drizzle } = getConnection(ctx.env)
+
+        const [foundAsset] = await drizzle.select().from(asset).where(eq(asset.id, id))
+
+        if (!foundAsset) {
+            return ctx.json({ success: false, message: 'Asset not found' }, 404)
+        }
+
         await drizzle.update(asset).set({ status: 'approved' }).where(eq(asset.id, id))
+
+        if (ctx.env.DISCORD_WEBHOOK) {
+            try {
+                await fetch(ctx.env.DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        content: null,
+                        embeds: [
+                            {
+                                description: `Approved ${foundAsset.name} [${foundAsset.extension}]`,
+                                color: 3669788,
+                                author: {
+                                    name: user.username,
+                                },
+                                footer: {
+                                    text: `${foundAsset.gameId} - ${foundAsset.categoryId}`,
+                                },
+                                timestamp: new Date().toISOString(),
+                            },
+                        ],
+                        attachments: [],
+                    }),
+                })
+            } catch (err) {
+                console.error('Failed to send webhook', err)
+            }
+        }
+
         return ctx.json({ success: true }, 200)
     })
 }
@@ -113,9 +151,46 @@ export const AssetApproveRoute = (handler: AppHandler) => {
 export const AssetDenyRoute = (handler: AppHandler) => {
     handler.use('/:id/deny', requireAuth, requireAdmin)
     handler.openapi(denyRoute, async ctx => {
+        const user = ctx.get('user')
+
         const { drizzle } = getConnection(ctx.env)
         const id = ctx.req.param('id')
+
+        const [foundAsset] = await drizzle.select().from(asset).where(eq(asset.id, id))
+
+        if (!foundAsset) {
+            return ctx.json({ success: false, message: 'Asset not found' }, 404)
+        }
+
         await drizzle.update(asset).set({ status: 'denied' }).where(eq(asset.id, id))
+
+        if (ctx.env.DISCORD_WEBHOOK) {
+            try {
+                await fetch(ctx.env.DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        content: null,
+                        embeds: [
+                            {
+                                description: `Denied ${foundAsset.name} [${foundAsset.extension}]`,
+                                color: 16734039,
+                                author: {
+                                    name: user.username,
+                                },
+                                footer: {
+                                    text: `${foundAsset.gameId} - ${foundAsset.categoryId}`,
+                                },
+                                timestamp: new Date().toISOString(),
+                            },
+                        ],
+                        attachments: [],
+                    }),
+                })
+            } catch (err) {
+                console.error('Failed to send webhook', err)
+            }
+        }
+
         return ctx.json({ success: true }, 200)
     })
 }

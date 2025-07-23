@@ -6,6 +6,7 @@ export interface Env {
     BETTER_AUTH_URL: string
     TURSO_DATABASE_URL: string
     TURSO_DATABASE_AUTH_TOKEN?: string
+    DISCORD_WEBHOOK?: string
 }
 
 export interface AuthVariables {

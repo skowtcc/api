@@ -121,21 +121,24 @@ export const AssetUploadRoute = (handler: AppHandler) => {
         const size = file.size || 0
         const extension = '.' + ext
 
-        await drizzle.insert(asset).values({
-            id: assetId,
-            name,
-            gameId,
-            categoryId,
-            createdAt: now,
-            uploadedBy: userObj.id,
-            isSuggestive: isSuggestive === true || isSuggestive === 'true',
-            size,
-            extension,
-            status,
-            hash: uuidv7(),
-            downloadCount: 0,
-            viewCount: 0,
-        })
+        const [uploadedAsset] = await drizzle
+            .insert(asset)
+            .values({
+                id: assetId,
+                name,
+                gameId,
+                categoryId,
+                createdAt: now,
+                uploadedBy: userObj.id,
+                isSuggestive: isSuggestive === true || isSuggestive === 'true',
+                size,
+                extension,
+                status,
+                hash: uuidv7(),
+                downloadCount: 0,
+                viewCount: 0,
+            })
+            .returning()
 
         if (tags.length > 0) {
             const validTags = await drizzle.select({ id: tag.id }).from(tag).where(inArray(tag.id, tags))
@@ -153,6 +156,56 @@ export const AssetUploadRoute = (handler: AppHandler) => {
             id: userObj.id,
             username: userObj.username || null,
             image: userObj.image || null,
+        }
+
+        if (ctx.env.DISCORD_WEBHOOK) {
+            try {
+                if (status === 'approved') {
+                    await fetch(ctx.env.DISCORD_WEBHOOK, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            content: null,
+                            embeds: [
+                                {
+                                    description: `Uploaded ${name} [${ext}]`,
+                                    color: 3669788,
+                                    author: {
+                                        name: userObj.username,
+                                    },
+                                    footer: {
+                                        text: `${gameId} - ${categoryId}`,
+                                    },
+                                    timestamp: new Date().toISOString(),
+                                },
+                            ],
+                            attachments: [],
+                        }),
+                    })
+                } else {
+                    await fetch(ctx.env.DISCORD_WEBHOOK, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            content: null,
+                            embeds: [
+                                {
+                                    description: `Uploaded ${name} [${ext}] for approval`,
+                                    color: 12736511,
+                                    author: {
+                                        name: userObj.username,
+                                    },
+                                    footer: {
+                                        text: `${gameId} - ${categoryId}`,
+                                    },
+                                    timestamp: new Date().toISOString(),
+                                },
+                            ],
+                            attachments: [],
+                        }),
+                    })
+                }
+            } catch (err) {
+                console.error('Failed to send webhook', err)
+            }
         }
 
         return ctx.json(
