@@ -44,6 +44,3 @@ jobs:
 
             - name: Initialize Drizzle
               run: pnpm run drizzle:dev:init
-
-            - name: Seed DB
-              run: pnpm run drizzle:seed
