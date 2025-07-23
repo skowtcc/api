@@ -1,21 +1,15 @@
-```txt
-npm install
-npm run dev
-```
+wanderer.moe's backend/api
 
-```txt
-npm run deploy
-```
+- better-auth for email/pw auth
+- turso for db
+- r2 for storage
+- aws ses for verification emails
+- hono as the backend
+- fully typesafe openapi spec, using scalar to make it pretty
+- hosted on cf workers
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+this code is pretty much self documenting
 
-```txt
-npm run cf-typegen
-```
+licensed under GNU General Public License v3.0
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+authored by [dromzeh](https://dromzeh.dev/)
