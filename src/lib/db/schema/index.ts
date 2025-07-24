@@ -8,5 +8,6 @@ export * from './asset/tag'
 export * from './category/category'
 
 export * from './game/game'
+export * from './game/gameToCategory'
 
 export * from './user/user'

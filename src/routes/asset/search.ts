@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
-import { like, and, eq, inArray, sql, type SQL } from 'drizzle-orm'
+import { like, and, eq, inArray, sql, desc, asc, type SQL } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
@@ -78,6 +78,30 @@ const querySchema = z.object({
             },
             example: '20',
         }),
+    sortBy: z
+        .enum(['viewCount', 'downloadCount', 'uploadDate', 'name'])
+        .optional()
+        .openapi({
+            param: {
+                description: 'Field to sort by.',
+                in: 'query',
+                name: 'sortBy',
+                required: false,
+            },
+            example: 'uploadDate',
+        }),
+    sortOrder: z
+        .enum(['asc', 'desc'])
+        .optional()
+        .openapi({
+            param: {
+                description: 'Sort order (ascending or descending).',
+                in: 'query',
+                name: 'sortOrder',
+                required: false,
+            },
+            example: 'desc',
+        }),
 })
 
 const responseSchema = z.object({
@@ -97,6 +121,7 @@ const responseSchema = z.object({
             size: z.number(),
             extension: z.string(),
             createdAt: z.string(),
+            isSuggestive: z.boolean(),
             tags: z.array(
                 z.object({
                     id: z.string(),
@@ -153,6 +178,8 @@ export const AssetSearchRoute = (handler: AppHandler) => {
         const page = query.page ? parseInt(query.page) : 1
         const limit = query.limit ? Math.min(parseInt(query.limit), 50) : 20
         const offset = (page - 1) * limit
+        const sortBy = query.sortBy || 'uploadDate'
+        const sortOrder = query.sortOrder || 'desc'
 
         if (page < 1) {
             return ctx.json(
@@ -210,6 +237,15 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 conditions.push(sql`${asset.id} IN (${tagSubquery})`)
             }
 
+            const sortColumn = {
+                viewCount: asset.viewCount,
+                downloadCount: asset.downloadCount,
+                uploadDate: asset.createdAt,
+                name: asset.name,
+            }[sortBy]!
+
+            const sortDirection = sortOrder === 'asc' ? asc : desc
+
             let baseQuery = drizzle
                 .select({
                     id: asset.id,
@@ -232,16 +268,14 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 .innerJoin(game, eq(asset.gameId, game.id))
                 .innerJoin(category, eq(asset.categoryId, category.id))
                 .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
+                .orderBy(sortDirection(sortColumn))
 
             const countQuery = drizzle
                 .select({ count: sql<number>`COUNT(*)` })
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
                 .innerJoin(category, eq(asset.categoryId, category.id))
-
-            if (conditions.length > 0) {
-                countQuery.where(and(...conditions))
-            }
+                .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
 
             const [assets, countResult] = await Promise.all([baseQuery.limit(limit).offset(offset), countQuery])
 

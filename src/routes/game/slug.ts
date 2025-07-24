@@ -26,6 +26,13 @@ const responseSchema = z.object({
         name: z.string(),
         lastUpdated: z.string(),
         assetCount: z.number(),
+        categories: z.array(
+            z.object({
+                id: z.string(),
+                slug: z.string(),
+                name: z.string(),
+            }),
+        ),
     }),
 })
 
@@ -57,9 +64,18 @@ export const GameSlugRoute = (handler: AppHandler) => {
         const { drizzle } = getConnection(ctx.env)
 
         try {
-            const gameResult = await drizzle.select().from(game).where(eq(game.slug, slug)).limit(1)
+            const gameData = await drizzle.query.game.findFirst({
+                where: eq(game.slug, slug),
+                with: {
+                    gameToCategories: {
+                        with: {
+                            category: true,
+                        },
+                    },
+                },
+            })
 
-            if (gameResult.length === 0) {
+            if (!gameData) {
                 return ctx.json(
                     {
                         success: false,
@@ -69,11 +85,17 @@ export const GameSlugRoute = (handler: AppHandler) => {
                 )
             }
 
-            const gameData = gameResult[0]!
-
             const formattedGame = {
-                ...gameData,
+                id: gameData.id,
+                slug: gameData.slug,
+                name: gameData.name,
                 lastUpdated: gameData.lastUpdated.toISOString(),
+                assetCount: gameData.assetCount,
+                categories: gameData.gameToCategories.map(gtc => ({
+                    id: gtc.category.id,
+                    slug: gtc.category.slug,
+                    name: gtc.category.name,
+                })),
             }
 
             return ctx.json(

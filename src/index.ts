@@ -5,6 +5,7 @@ import { Env } from '~/lib/handler'
 import { AssetHandler } from './routes/asset'
 import { GameHandler } from './routes/game'
 import { CategoryHandler } from './routes/category'
+import { TagHandler } from './routes/tag'
 import { AuthHandler } from './routes/auth'
 import { UserHandler } from './routes/user'
 import { apiReference } from '@scalar/hono-api-reference'
@@ -14,7 +15,12 @@ const app = new OpenAPIHono<{ Bindings: Env }>()
 app.use(
     '*',
     cors({
-        origin: ['http://localhost:8787', 'https://wanderer.moe', 'https://staging.wanderer.moe'],
+        origin: [
+            'http://localhost:8787',
+            'http://localhost:3000',
+            'https://wanderer.moe',
+            'https://staging.wanderer.moe',
+        ],
         credentials: true,
     }),
 )
@@ -22,6 +28,7 @@ app.use(
 app.route('/asset', AssetHandler)
 app.route('/game', GameHandler)
 app.route('/category', CategoryHandler)
+app.route('/tag', TagHandler)
 app.route('/user', UserHandler)
 app.route('/auth', AuthHandler)
 
@@ -55,5 +62,10 @@ app.get(
         theme: 'bluePlanet',
     }),
 )
+
+app.onError((err, c) => {
+    console.error(err)
+    return c.json({ success: false, message: 'Internal Server Error' }, 500)
+})
 
 export default app

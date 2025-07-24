@@ -1,6 +1,6 @@
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "api",
+    "name": "api-wanderer",
     "main": "src/index.ts",
     "compatibility_date": "2025-07-18",
     // "compatibility_flags": [

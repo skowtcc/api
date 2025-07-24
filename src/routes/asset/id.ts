@@ -103,7 +103,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     categoryName: category.name,
                     categorySlug: category.slug,
                     isSuggestive: asset.isSuggestive,
-                    uploadedBy: user.id,
+                    uploadedBy: asset.uploadedBy,
                 })
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
