@@ -1,5 +1,8 @@
 import { createMiddleware } from 'hono/factory'
 import { createAuth, type Auth } from '~/lib/auth/auth'
+import { getConnection } from '~/lib/db/connection'
+import { user } from '~/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 export interface Env {
     BETTER_AUTH_SECRET: string
@@ -14,6 +17,7 @@ export interface AuthVariables {
     auth: Auth
     user?: any
     session?: any
+    fullUser?: typeof user.$inferSelect
 }
 
 export const authMiddleware = createMiddleware<{
@@ -38,32 +42,35 @@ export const requireAuth = createMiddleware<{
 }>(async (c, next) => {
     const auth = c.get('auth')
 
-    const headers = new Headers()
-    for (const [key, value] of Object.entries(c.req.header())) {
-        if (typeof value === 'string') {
-            headers.set(key, value)
+    const { drizzle } = getConnection(c.env)
+
+    try {
+        const session = await auth.api.getSession({
+            headers: c.req.raw.headers,
+        })
+
+        if (!session) {
+            return c.json({ error: 'Unauthorized' }, 401)
         }
+
+        const [fullUser] = await drizzle.select().from(user).where(eq(user.id, session.user.id))
+
+        c.set('user', session.user)
+        c.set('fullUser', fullUser)
+        c.set('session', session.session)
+
+        await next()
+    } catch (error) {
+        console.error('Auth error:', error)
+        return c.json({ success: false, error: 'Authentication middlewarefailed' }, 401)
     }
-
-    const session = await auth.api.getSession({
-        headers,
-    })
-
-    if (!session) {
-        return c.json({ error: 'Unauthorized' }, 401)
-    }
-
-    c.set('user', session.user)
-    c.set('session', session.session)
-
-    await next()
 })
 
 export const requireAdminOrContributor = createMiddleware<{
     Bindings: Env
     Variables: AuthVariables
 }>(async (ctx, next) => {
-    const user = ctx.get('user')
+    const user = ctx.get('fullUser')
     if (!user || (user.role !== 'admin' && user.role !== 'contributor')) {
         throw new Error('Forbidden: Only admin or contributor can access this route')
     }

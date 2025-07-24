@@ -19,6 +19,7 @@
         {
             "binding": "CDN",
             "bucket_name": "cdn-asset-site",
+            "preview_bucket_name": "cdn-asset-site",
         },
     ],
     // "d1_databases": [

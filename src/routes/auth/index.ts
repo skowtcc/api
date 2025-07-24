@@ -6,6 +6,7 @@ import { AuthLoginRoute } from './login'
 import { AuthLogoutRoute } from './logout'
 import { AuthProfileRoute } from './profile'
 import { AuthUpdateProfileRoute } from './update-profile'
+import { AuthUpdatePasswordRoute } from './update-password'
 
 export const AuthHandler = new OpenAPIHono<{ Bindings: Env; Variables: AuthVariables }>()
 
@@ -16,3 +17,4 @@ AuthLoginRoute(AuthHandler)
 AuthLogoutRoute(AuthHandler)
 AuthProfileRoute(AuthHandler)
 AuthUpdateProfileRoute(AuthHandler)
+AuthUpdatePasswordRoute(AuthHandler)

@@ -7,7 +7,7 @@ import { getConnection } from '~/lib/db/connection'
 import { eq } from 'drizzle-orm'
 import { user } from '~/lib/db/schema'
 
-const bodySchema = z.object({
+const formSchema = z.object({
     name: z.string().min(1).optional().openapi({
         description: "User's display name",
         example: 'Display Name',
@@ -17,9 +17,57 @@ const bodySchema = z.object({
         example: 'username',
     }),
     image: z.any().optional().openapi({
-        description: "User's profile picture",
+        description: 'Profile picture (PNG. 8MB max - ONLY available to contributors)',
     }),
 })
+
+const ALLOWED_MIME_TYPES = ['image/png'] as const
+const ALLOWED_EXTENSIONS = ['png'] as const
+const MAX_FILE_SIZE = 8 * 1024 * 1024
+
+type FileValidationResult = { valid: true; extension: string } | { valid: false; message: string }
+
+function validateFile(file: unknown): FileValidationResult {
+    if (!file || typeof file !== 'object' || !file) {
+        return { valid: false, message: 'File is required' }
+    }
+
+    const fileObj = file as any
+
+    if (!fileObj.type || !fileObj.name || typeof fileObj.size !== 'number') {
+        return { valid: false, message: 'Invalid file object' }
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(fileObj.type)) {
+        return {
+            valid: false,
+            message: `Invalid file type. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
+        }
+    }
+
+    if (fileObj.size > MAX_FILE_SIZE) {
+        return { valid: false, message: 'File size exceeds 10MB limit' }
+    }
+
+    const fileName = String(fileObj.name)
+    const extension = fileName.split('.').pop()?.toLowerCase()
+
+    if (!extension) {
+        return {
+            valid: false,
+            message: 'File must have an extension',
+        }
+    }
+
+    if (!ALLOWED_EXTENSIONS.includes(extension as any)) {
+        return {
+            valid: false,
+            message: `Invalid file extension. Allowed extensions: ${ALLOWED_EXTENSIONS.join(', ')}`,
+        }
+    }
+
+    return { valid: true, extension }
+}
 
 const responseSchema = z.object({
     success: z.boolean(),
@@ -45,8 +93,8 @@ const openRoute = createRoute({
     request: {
         body: {
             content: {
-                'application/json': {
-                    schema: bodySchema,
+                'multipart/form-data': {
+                    schema: formSchema,
                 },
             },
         },
@@ -68,15 +116,42 @@ export const AuthUpdateProfileRoute = (handler: AppHandler) => {
     handler.use('/profile', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
-        const { name, username, image } = ctx.req.valid('json')
-        const currentUser = ctx.get('user')
+        const currentUser = ctx.get('fullUser')
         const { drizzle } = getConnection(ctx.env)
+
+        if (!currentUser) {
+            return ctx.json({ success: false, message: 'Context user is null' }, 500)
+        }
+
+        const form = await ctx.req.formData()
+        const formData = Object.fromEntries(form.entries())
+        const parseResult = formSchema.safeParse(formData)
+
+        if (!parseResult.success) {
+            return ctx.json(
+                {
+                    success: false,
+                    message:
+                        'Invalid form data: ' +
+                        Object.entries(parseResult.error.flatten().fieldErrors)
+                            .map(([key, value]) => `${key}: ${value?.join(', ')}`)
+                            .join(', '),
+                },
+                400,
+            )
+        }
+
+        const { username, name, image } = parseResult.data
 
         try {
             if (username && username !== currentUser.username) {
-                const existingUser = await drizzle.select().from(user).where(eq(user.username, username)).limit(1)
+                const [existingUser] = await drizzle
+                    .select({ id: user.id })
+                    .from(user)
+                    .where(eq(user.username, username))
+                    .limit(1)
 
-                if (existingUser.length > 0) {
+                if (existingUser) {
                     return ctx.json(
                         {
                             success: false,
@@ -91,17 +166,35 @@ export const AuthUpdateProfileRoute = (handler: AppHandler) => {
                 updatedAt: new Date(),
             }
 
-            if (name !== undefined) updateData.name = name
-            if (username !== undefined) updateData.username = username
-            if (image !== undefined) updateData.image = image
+            if (name) updateData.name = name
+            if (username) updateData.username = username
 
-            const updatedUsers = await drizzle
+            if (image) {
+                const fileValidation = validateFile(image)
+
+                if (!fileValidation.valid) {
+                    return ctx.json({ success: false, message: 'Invalid profile picture' }, 400)
+                }
+
+                const storagePath = `profile/${currentUser.id}.${fileValidation.extension}`
+                const fileUploaded = await ctx.env.CDN.put(storagePath, image)
+
+                if (!fileUploaded) {
+                    return ctx.json({ success: false, message: 'Failed to upload profile picture' }, 500)
+                }
+
+                updateData.image = `https://images.wanderer.moe/${storagePath}`
+            }
+
+            const [updatedUser] = await drizzle
                 .update(user)
                 .set(updateData)
                 .where(eq(user.id, currentUser.id))
                 .returning()
 
-            const updatedUser = updatedUsers[0]!
+            if (!updatedUser) {
+                return ctx.json({ success: false, message: 'Failed to update profile' }, 500)
+            }
 
             return ctx.json(
                 {

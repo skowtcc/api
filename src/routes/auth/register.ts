@@ -5,25 +5,29 @@ import { GenericResponses } from '~/lib/response-schemas'
 import { getConnection } from '~/lib/db/connection'
 import { user } from '~/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { setCookie } from 'hono/cookie'
 
 const bodySchema = z.object({
     email: z.string().email().openapi({
         description: "User's email address",
         example: 'user@example.com',
     }),
-    password: z.string().min(6).openapi({
-        description: "User's password (minimum 6 characters)",
+    password: z.string().min(6).max(32).openapi({
+        description: "User's password (minimum 6 characters, maximum 32 characters)",
         example: 'password123',
     }),
-    name: z.string().min(1).openapi({
+    name: z.string().min(1).max(32).openapi({
         description: "User's display name",
         example: 'display name',
     }),
-    username: z.string().min(3).openapi({
-        description: "User's unique username (required)",
-        example: 'username',
-    }),
+    username: z
+        .string()
+        .min(3)
+        .max(32)
+        .regex(/^[a-zA-Z0-9]+$/)
+        .openapi({
+            description: "User's unique username (required)",
+            example: 'username',
+        }),
 })
 
 const responseSchema = z.object({
@@ -125,23 +129,7 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
 
             const finalUsername = updatedUsers.length > 0 ? updatedUsers[0]!.username : username
 
-            const cookieHeaders = result.headers.get('set-cookie')
-            if (cookieHeaders) {
-                const cookieMatches = cookieHeaders.match(/([^=]+)=([^;]+)/)
-                if (cookieMatches && cookieMatches[1] && cookieMatches[2]) {
-                    const name = cookieMatches[1].trim()
-                    const value = cookieMatches[2].trim()
-                    setCookie(ctx, name, value, {
-                        httpOnly: true,
-                        secure: true,
-                        sameSite: 'Lax',
-                        path: '/',
-                        maxAge: 60 * 60 * 24 * 30,
-                    })
-                }
-            }
-
-            return ctx.json(
+            const response = ctx.json(
                 {
                     success: true,
                     message: 'User registered successfully',
@@ -154,6 +142,14 @@ export const AuthRegisterRoute = (handler: AppHandler) => {
                 },
                 201,
             )
+
+            for (const [key, value] of result.headers.entries()) {
+                if (key.toLowerCase() === 'set-cookie') {
+                    response.headers.append('Set-Cookie', value)
+                }
+            }
+
+            return response
         } catch (error: any) {
             return ctx.json(
                 {

@@ -5,7 +5,7 @@ import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 import { downloadHistory, downloadHistoryToAsset } from '~/lib/db/schema/asset/downloadHistory'
 import { asset } from '~/lib/db/schema/asset/asset'
-import { eq, inArray } from 'drizzle-orm'
+import { desc, eq, inArray } from 'drizzle-orm'
 import { requireAuth } from '~/lib/auth/middleware'
 
 const postBodySchema = z.object({
@@ -29,6 +29,7 @@ const getResponseSchema = z.object({
         z.object({
             id: z.string(),
             assetIds: z.array(z.string()),
+            createdAt: z.string(),
         }),
     ),
 })
@@ -102,7 +103,16 @@ export const AssetDownloadHistoryGetRoute = (handler: AppHandler) => {
         const user = ctx.get('user')
         const { drizzle } = getConnection(ctx.env)
 
-        const histories = await drizzle.select().from(downloadHistory).where(eq(downloadHistory.userId, user.id))
+        const histories = await drizzle
+            .select()
+            .from(downloadHistory)
+            .where(eq(downloadHistory.userId, user.id))
+            .orderBy(desc(downloadHistory.createdAt))
+
+        if (!histories) {
+            return ctx.json({ success: true, histories: [] }, 200)
+        }
+
         const result: { id: string; createdAt: string; assetIds: string[] }[] = []
 
         for (const h of histories) {

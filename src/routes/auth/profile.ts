@@ -3,6 +3,9 @@ import { AppHandler } from '~/lib/handler'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 import { requireAuth } from '~/lib/auth/middleware'
+import { eq } from 'drizzle-orm'
+import { getConnection } from '~/lib/db/connection'
+import { user } from '~/lib/db/schema'
 
 const responseSchema = z.object({
     success: z.boolean(),
@@ -15,6 +18,7 @@ const responseSchema = z.object({
         emailVerified: z.boolean(),
         createdAt: z.string(),
         updatedAt: z.string(),
+        role: z.enum(['user', 'admin', 'contributor']),
     }),
 })
 
@@ -41,21 +45,60 @@ export const AuthProfileRoute = (handler: AppHandler) => {
     handler.use('/profile', requireAuth)
 
     handler.openapi(openRoute, async ctx => {
-        const user = ctx.get('user')
+        const authUser = ctx.get('user')
+
+        if (!authUser) {
+            return ctx.json(
+                {
+                    success: false,
+                    message: 'Unauthorized',
+                },
+                401,
+            )
+        }
+
+        const { drizzle } = getConnection(ctx.env)
+
+        const [userData] = await drizzle
+            .select({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                username: user.username,
+                image: user.image,
+                emailVerified: user.emailVerified,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+                role: user.role,
+            })
+            .from(user)
+            .where(eq(user.id, authUser.id))
+            .limit(1)
+
+        if (!userData) {
+            return ctx.json(
+                {
+                    success: false,
+                    message: 'Failed to get full user data',
+                },
+                500,
+            )
+        }
 
         try {
             return ctx.json(
                 {
                     success: true,
                     user: {
-                        id: user.id,
-                        email: user.email,
-                        name: user.name,
-                        username: user.username || null,
-                        image: user.image || null,
-                        emailVerified: user.emailVerified,
-                        createdAt: user.createdAt.toISOString(),
-                        updatedAt: user.updatedAt.toISOString(),
+                        id: userData.id,
+                        email: userData.email,
+                        name: userData.name,
+                        username: userData.username,
+                        image: userData.image,
+                        emailVerified: userData.emailVerified,
+                        createdAt: userData.createdAt.toISOString(),
+                        updatedAt: userData.updatedAt.toISOString(),
+                        role: userData.role,
                     },
                 },
                 200,
