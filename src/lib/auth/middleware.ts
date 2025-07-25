@@ -61,8 +61,7 @@ export const requireAuth = createMiddleware<{
 
         await next()
     } catch (error) {
-        console.error('Auth error:', error)
-        return c.json({ success: false, error: 'Authentication middlewarefailed' }, 401)
+        return c.json({ success: false, error: 'Authentication middleware failed' }, 401)
     }
 })
 
@@ -72,7 +71,7 @@ export const requireAdminOrContributor = createMiddleware<{
 }>(async (ctx, next) => {
     const user = ctx.get('fullUser')
     if (!user || (user.role !== 'admin' && user.role !== 'contributor')) {
-        throw new Error('Forbidden: Only admin or contributor can access this route')
+        return ctx.json({ success: false, message: 'Forbidden: Only admin or contributor can access this route' }, 403)
     }
     await next()
 })
@@ -81,9 +80,9 @@ export const requireAdmin = createMiddleware<{
     Bindings: Env
     Variables: AuthVariables
 }>(async (ctx, next) => {
-    const user = ctx.get('user')
+    const user = ctx.get('fullUser')
     if (!user || user.role !== 'admin') {
-        throw new Error('Forbidden: Only admin can access this route')
+        return ctx.json({ success: false, message: 'Forbidden: Only admin can access this route' }, 403)
     }
     await next()
 })

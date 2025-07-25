@@ -173,6 +173,8 @@ export const AssetSearchRoute = (handler: AppHandler) => {
     handler.openapi(openRoute, async ctx => {
         const query = ctx.req.valid('query')
 
+        const isGB = ctx.req.header('cf-ipcountry') === 'GB'
+
         const { drizzle } = getConnection(ctx.env)
 
         const page = query.page ? parseInt(query.page) : 1
@@ -267,7 +269,13 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
                 .innerJoin(category, eq(asset.categoryId, category.id))
-                .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
+                .where(
+                    and(
+                        conditions.length > 0 ? and(...conditions) : undefined,
+                        eq(asset.status, 'approved'),
+                        isGB ? eq(asset.isSuggestive, false) : undefined,
+                    ),
+                )
                 .orderBy(sortDirection(sortColumn))
 
             const countQuery = drizzle

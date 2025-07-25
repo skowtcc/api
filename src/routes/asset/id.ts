@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi'
 import { AppHandler } from '~/lib/handler'
 import { getConnection } from '~/lib/db/connection'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
@@ -84,6 +84,8 @@ export const AssetIdRoute = (handler: AppHandler) => {
         const { id } = ctx.req.valid('param')
         const { drizzle } = getConnection(ctx.env)
 
+        const isGB = ctx.req.header('cf-ipcountry') === 'GB'
+
         try {
             const assetResult = await drizzle
                 .select({
@@ -108,7 +110,7 @@ export const AssetIdRoute = (handler: AppHandler) => {
                 .from(asset)
                 .innerJoin(game, eq(asset.gameId, game.id))
                 .innerJoin(category, eq(asset.categoryId, category.id))
-                .where(eq(asset.id, id))
+                .where(and(eq(asset.id, id), isGB ? eq(asset.isSuggestive, false) : undefined))
                 .limit(1)
 
             if (assetResult.length === 0) {

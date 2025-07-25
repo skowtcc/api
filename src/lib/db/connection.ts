@@ -6,7 +6,7 @@ import * as schema from '~/lib/db/schema'
 
 class LoggerWrapper implements Logger {
     logQuery(query: string, params: unknown[]): void {
-        console.log(`[DRIZZLE]: Query: ${query}, Parameters: ${params ?? 'none'}`)
+        // console.log(`[DRIZZLE]: Query: ${query}, Parameters: ${params ?? 'none'}`)
     }
 }
 
