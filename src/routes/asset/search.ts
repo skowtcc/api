@@ -175,16 +175,12 @@ export const AssetSearchRoute = (handler: AppHandler) => {
         '/search',
         cache({
             cacheName: 'asset-search',
-            cacheControl: 'max-age=10, s-maxage=10',
+            cacheControl: 'max-age=600, s-maxage=600',
         })
     )
     
     handler.openapi(openRoute, async ctx => {
         const query = ctx.req.valid('query')
-        
-        const currentUser = ctx.get('user')
-        const isAdmin = currentUser?.role === 'admin'
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
 
         const { drizzle } = getConnection(ctx.env)
 
@@ -307,7 +303,6 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     and(
                         conditions.length > 0 ? and(...conditions) : undefined,
                         eq(asset.status, 'approved'),
-                        isGB ? eq(asset.isSuggestive, false) : undefined,
                     ),
                 )
                 .orderBy(sortDirection(sortColumn))
