@@ -55,29 +55,17 @@ const querySchema = z.object({
             },
             example: 'character-sheets,splash-art',
         }),
-    page: z
+    offset: z
         .string()
         .optional()
         .openapi({
             param: {
-                description: 'Page number for pagination (starts at 1).',
+                description: 'Number of results to skip for pagination (starts at 0).',
                 in: 'query',
-                name: 'page',
+                name: 'offset',
                 required: false,
             },
-            example: '1',
-        }),
-    limit: z
-        .string()
-        .optional()
-        .openapi({
-            param: {
-                description: 'Number of results per page (max 50).',
-                in: 'query',
-                name: 'limit',
-                required: false,
-            },
-            example: '20',
+            example: '0',
         }),
     sortBy: z
         .enum(['viewCount', 'downloadCount', 'uploadDate', 'name'])
@@ -139,12 +127,8 @@ const responseSchema = z.object({
         }),
     ),
     pagination: z.object({
-        page: z.number(),
-        limit: z.number(),
-        total: z.number(),
-        totalPages: z.number(),
+        offset: z.number(),
         hasNext: z.boolean(),
-        hasPrev: z.boolean(),
     }),
 })
 
@@ -174,7 +158,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
     handler.use(
         '/search',
         cache({
-            cacheName: 'asset-search',
+            cacheName: 'asset-search-all',
             cacheControl: 'max-age=600, s-maxage=600',
         }),
     )
@@ -184,17 +168,15 @@ export const AssetSearchRoute = (handler: AppHandler) => {
 
         const { drizzle } = getConnection(ctx.env)
 
-        const page = query.page ? parseInt(query.page) : 1
-        const limit = query.limit ? Math.min(parseInt(query.limit), 50) : 20
-        const offset = (page - 1) * limit
+        const offset = query.offset ? parseInt(query.offset) : 0
         const sortBy = query.sortBy || 'uploadDate'
         const sortOrder = query.sortOrder || 'desc'
 
-        if (page < 1) {
+        if (offset < 0) {
             return ctx.json(
                 {
                     success: false,
-                    message: 'Page must be 1 or greater',
+                    message: 'Offset must be 0 or greater',
                 },
                 400,
             )
@@ -296,17 +278,12 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
                 .orderBy(sortDirection(sortColumn))
 
-            const countQuery = drizzle
-                .select({ count: sql<number>`COUNT(*)` })
-                .from(asset)
-                .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
+            const assets = await baseQuery.limit(21).offset(offset)
 
-            const [assets, countResult] = await Promise.all([baseQuery.limit(limit).offset(offset), countQuery])
+            const hasNext = assets.length > 20
+            const finalAssets = hasNext ? assets.slice(0, 20) : assets
 
-            const total = countResult[0]?.count || 0
-            const totalPages = Math.ceil(total / limit)
-
-            const assetIds = assets.map(a => a.id)
+            const assetIds = finalAssets.map(a => a.id)
             const assetTags =
                 assetIds.length > 0
                     ? await drizzle
@@ -337,7 +314,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                 {} as Record<string, any[]>,
             )
 
-            const uploaderIds = assets.map(a => a.uploadedBy)
+            const uploaderIds = finalAssets.map(a => a.uploadedBy)
             const uploaders =
                 uploaderIds.length > 0
                     ? await drizzle
@@ -351,7 +328,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     : []
             const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
 
-            const formattedAssets = assets.map(asset => {
+            const formattedAssets = finalAssets.map(asset => {
                 const gameInfo = gameMap[asset.gameId]
                 const categoryInfo = categoryMap[asset.categoryId]
 
@@ -372,12 +349,8 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     success: true,
                     assets: formattedAssets,
                     pagination: {
-                        page,
-                        limit,
-                        total,
-                        totalPages,
-                        hasNext: page < totalPages,
-                        hasPrev: page > 1,
+                        offset,
+                        hasNext,
                     },
                 },
                 200,

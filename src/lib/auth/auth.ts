@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { name } from 'drizzle-orm'
 import { getConnection } from '~/lib/db/connection'
 import * as schema from '~/lib/db/schema'
 import { Env } from '~/lib/handler'
@@ -23,14 +24,21 @@ export function createAuth(env: Env) {
             // 'http://localhost:8787',
             // 'http://localhost:3000',
             'https://skowt.cc',
-            'https://staging.skowt.cc',
+            // 'https://staging.skowt.cc',
         ],
         secret: env.BETTER_AUTH_SECRET,
         baseURL: env.BETTER_AUTH_URL,
         socialProviders: {
             discord: {
+                overrideUserInfoOnSignIn: true,
                 clientId: env.DISCORD_CLIENT_ID as string,
                 clientSecret: env.DISCORD_CLIENT_SECRET as string,
+                mapProfileToUser: async (profile) => {
+                    return {
+                        name: profile.username,
+                        displayName: profile.global_name || profile.username,
+                    };
+                },
             },
         },
         emailAndPassword: {

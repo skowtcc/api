@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { game, category } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
+import { cache } from 'hono/cache'
 
 const responseSchema = z.object({
     success: z.boolean(),
@@ -37,6 +38,14 @@ const openRoute = createRoute({
 })
 
 export const CategoryAllRoute = (handler: AppHandler) => {
+    handler.use(
+        '/all',
+        cache({
+            cacheName: 'category-all',
+            cacheControl: 'max-age=43200, s-maxage=43200',
+        }),
+    )
+
     handler.openapi(openRoute, async ctx => {
         const { drizzle } = getConnection(ctx.env)
 

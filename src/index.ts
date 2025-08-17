@@ -6,7 +6,6 @@ import { AssetHandler } from './routes/asset'
 import { GameHandler } from './routes/game'
 import { CategoryHandler } from './routes/category'
 import { TagHandler } from './routes/tag'
-import { AuthHandler } from './routes/auth'
 import { UserHandler } from './routes/user'
 import { apiReference } from '@scalar/hono-api-reference'
 import { rateLimiter } from 'hono-rate-limiter'
@@ -22,7 +21,7 @@ app.use(
             // 'http://localhost:8787',
             // 'http://localhost:3000',
             'https://skowt.cc',
-            'https://staging.skowt.cc',
+            // 'https://staging.skowt.cc',
         ],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
@@ -50,7 +49,6 @@ app.route('/game', GameHandler)
 app.route('/category', CategoryHandler)
 app.route('/tag', TagHandler)
 app.route('/user', UserHandler)
-app.route('/personal', AuthHandler)
 
 app.get('/', c => {
     return c.json({ message: 'api is up!', swagger: '/swagger', reference: '/reference' })

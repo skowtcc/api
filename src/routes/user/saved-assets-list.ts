@@ -8,16 +8,11 @@ import { eq, desc, inArray, like, and, sql, asc, type SQL } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, savedAsset, user } from '~/lib/db/schema'
 
 const querySchema = z.object({
-    page: z
+    offset: z
         .string()
         .optional()
-        .default('1')
-        .transform(val => parseInt(val, 10)),
-    limit: z
-        .string()
-        .optional()
-        .default('20')
-        .transform(val => Math.min(100, Math.max(1, parseInt(val, 10)))),
+        .default('0')
+        .transform(val => Math.max(0, parseInt(val, 10))),
     search: z.string().optional(),
     games: z.string().optional().describe('Comma-separated list of game slugs to filter by'),
     categories: z.string().optional().describe('Comma-separated list of category slugs to filter by'),
@@ -60,12 +55,8 @@ const responseSchema = z.object({
         }),
     ),
     pagination: z.object({
-        page: z.number(),
-        limit: z.number(),
-        total: z.number(),
-        totalPages: z.number(),
+        offset: z.number(),
         hasNext: z.boolean(),
-        hasPrev: z.boolean(),
     }),
 })
 
@@ -100,7 +91,7 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
             return ctx.json({ success: false, message: 'Unauthorized' }, 401)
         }
         const { drizzle } = getConnection(ctx.env)
-        const { page, limit, search, games, categories, tags, sortBy, sortOrder } = ctx.req.valid('query')
+        const { offset, search, games, categories, tags, sortBy, sortOrder } = ctx.req.valid('query')
 
         try {
             const [allGames, allCategories, allTags] = await Promise.all([
@@ -191,12 +182,8 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                                     success: true,
                                     savedAssets: [],
                                     pagination: {
-                                        page,
-                                        limit,
-                                        total: 0,
-                                        totalPages: 0,
+                                        offset,
                                         hasNext: false,
-                                        hasPrev: false,
                                     },
                                 },
                                 200,
@@ -207,15 +194,6 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                 }
             }
 
-            const [countResult] = await drizzle
-                .select({ count: sql<number>`count(*)` })
-                .from(asset)
-                .innerJoin(savedAsset, eq(asset.id, savedAsset.assetId))
-                .where(and(...conditions))
-
-            const total = countResult?.count || 0
-            const totalPages = Math.ceil(total / limit)
-            const offset = (page - 1) * limit
 
             let orderByClause
             switch (sortBy) {
@@ -256,11 +234,14 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                 .innerJoin(savedAsset, eq(asset.id, savedAsset.assetId))
                 .where(and(...conditions))
                 .orderBy(orderByClause)
-                .limit(limit)
+                .limit(21)
                 .offset(offset)
 
+            const hasNext = savedAssets.length > 20
+            const finalAssets = hasNext ? savedAssets.slice(0, 20) : savedAssets
+
             const assetTags =
-                savedAssets.length > 0
+                finalAssets.length > 0
                     ? await drizzle
                           .select({
                               assetId: assetToTag.assetId,
@@ -270,7 +251,7 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                           .where(
                               inArray(
                                   assetToTag.assetId,
-                                  savedAssets.map(savedAsset => savedAsset.id),
+                                  finalAssets.map(savedAsset => savedAsset.id),
                               ),
                           )
                     : []
@@ -294,7 +275,7 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                 {} as Record<string, { id: string; name: string; slug: string; color: string | null }[]>,
             )
 
-            const uploaderIds = savedAssets.map(a => a.uploadedBy)
+            const uploaderIds = finalAssets.map(a => a.uploadedBy)
             const uploaders =
                 uploaderIds.length > 0
                     ? await drizzle
@@ -308,7 +289,7 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                     : []
             const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
 
-            const formattedAssets = savedAssets.map(savedAsset => {
+            const formattedAssets = finalAssets.map(savedAsset => {
                 const gameData = gameMap[savedAsset.gameId]
                 const categoryData = categoryMap[savedAsset.categoryId]
                 return {
@@ -332,12 +313,8 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                     success: true,
                     savedAssets: formattedAssets,
                     pagination: {
-                        page,
-                        limit,
-                        total,
-                        totalPages,
-                        hasNext: page < totalPages,
-                        hasPrev: page > 1,
+                        offset,
+                        hasNext,
                     },
                 },
                 200,
