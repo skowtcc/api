@@ -86,7 +86,7 @@ export const AssetDownloadHistoryPostRoute = (handler: AppHandler) => {
 
             if (currentCount >= 500) {
                 const toDelete = currentCount - 499
-                
+
                 const oldestEntries = await tx
                     .select({ id: downloadHistory.id })
                     .from(downloadHistory)
@@ -96,14 +96,12 @@ export const AssetDownloadHistoryPostRoute = (handler: AppHandler) => {
 
                 if (oldestEntries.length > 0) {
                     const idsToDelete = oldestEntries.map(e => e.id)
-                    
+
                     await tx
                         .delete(downloadHistoryToAsset)
                         .where(inArray(downloadHistoryToAsset.downloadHistoryId, idsToDelete))
-                    
-                    await tx
-                        .delete(downloadHistory)
-                        .where(inArray(downloadHistory.id, idsToDelete))
+
+                    await tx.delete(downloadHistory).where(inArray(downloadHistory.id, idsToDelete))
                 }
             }
 

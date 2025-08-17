@@ -176,9 +176,9 @@ export const AssetSearchRoute = (handler: AppHandler) => {
         cache({
             cacheName: 'asset-search',
             cacheControl: 'max-age=600, s-maxage=600',
-        })
+        }),
     )
-    
+
     handler.openapi(openRoute, async ctx => {
         const query = ctx.req.valid('query')
 
@@ -220,14 +220,12 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             : []
 
         try {
-            // Fetch all games, categories, and tags at once for lookup maps
             const [allGames, allCategories, allTags] = await Promise.all([
                 drizzle.select().from(game),
                 drizzle.select().from(category),
-                drizzle.select().from(tag)
+                drizzle.select().from(tag),
             ])
 
-            // Create lookup maps for O(1) access
             const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
             const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
             const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
@@ -242,9 +240,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             }
 
             if (gameSlugs.length > 0) {
-                const gameIds = gameSlugs
-                    .map(slug => gameSlugMap[slug])
-                    .filter((id): id is string => id !== undefined)
+                const gameIds = gameSlugs.map(slug => gameSlugMap[slug]).filter((id): id is string => id !== undefined)
                 if (gameIds.length > 0) {
                     conditions.push(inArray(asset.gameId, gameIds))
                 }
@@ -260,9 +256,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             }
 
             if (tagSlugs.length > 0) {
-                const tagIds = tagSlugs
-                    .map(slug => tagSlugMap[slug])
-                    .filter((id): id is string => id !== undefined)
+                const tagIds = tagSlugs.map(slug => tagSlugMap[slug]).filter((id): id is string => id !== undefined)
                 if (tagIds.length > 0) {
                     const tagSubquery = drizzle
                         .select({ assetId: assetToTag.assetId })
@@ -299,12 +293,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     uploadedBy: asset.uploadedBy,
                 })
                 .from(asset)
-                .where(
-                    and(
-                        conditions.length > 0 ? and(...conditions) : undefined,
-                        eq(asset.status, 'approved'),
-                    ),
-                )
+                .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
                 .orderBy(sortDirection(sortColumn))
 
             const countQuery = drizzle
@@ -365,7 +354,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             const formattedAssets = assets.map(asset => {
                 const gameInfo = gameMap[asset.gameId]
                 const categoryInfo = categoryMap[asset.categoryId]
-                
+
                 return {
                     ...asset,
                     gameName: gameInfo?.name || 'Unknown',

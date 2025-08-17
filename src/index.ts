@@ -32,18 +32,18 @@ app.use(
 
 app.use((c, next) =>
     rateLimiter<{ Bindings: Env; Variables: AuthVariables }>({
-        windowMs: 1 * 60 * 1000, 
-        limit: 10000, 
+        windowMs: 1 * 60 * 1000,
+        limit: 10000,
         standardHeaders: 'draft-6',
-        keyGenerator: (c) => c.req.header('CF-Connecting-IP') ?? '',
+        keyGenerator: c => c.req.header('CF-Connecting-IP') ?? '',
         store: new DurableObjectStore({ namespace: c.env.RATE_LIMITER }),
-    })(c, next)
+    })(c, next),
 )
 
-app.all("/auth/*", async (c) => {
-    const auth = createAuth(c.env);
-    return auth.handler(c.req.raw);
-});
+app.all('/auth/*', async c => {
+    const auth = createAuth(c.env)
+    return auth.handler(c.req.raw)
+})
 
 app.route('/asset', AssetHandler)
 app.route('/game', GameHandler)
@@ -52,9 +52,8 @@ app.route('/tag', TagHandler)
 app.route('/user', UserHandler)
 app.route('/personal', AuthHandler)
 
-
 app.get('/', c => {
-    return c.json({ message: 'api is up!', swagger: "/swagger", reference: "/reference" })
+    return c.json({ message: 'api is up!', swagger: '/swagger', reference: '/reference' })
 })
 
 app.get('/swagger', swaggerUI({ url: '/doc' }))
@@ -74,7 +73,7 @@ app.doc('/doc', {
         {
             url: 'http://localhost:8787',
             description: 'Development server',
-        }
+        },
     ],
 })
 
@@ -89,16 +88,15 @@ app.get(
 )
 
 app.onError((err, c) => {
-    console.error("[API] Internal server error: ", err);
+    console.error('[API] Internal server error: ', err)
     return c.json(
         {
             success: false,
-            message:
-                "Internal server error. Please contact support@originoid.co if this issue persists.",
+            message: 'Internal server error. Please contact support@originoid.co if this issue persists.',
         },
         500,
-    );
-});
+    )
+})
 
 export { DurableObjectRateLimiter }
 

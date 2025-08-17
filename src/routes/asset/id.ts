@@ -86,19 +86,14 @@ export const AssetIdRoute = (handler: AppHandler) => {
         cache({
             cacheName: 'asset-by-id',
             cacheControl: 'max-age=28800, s-maxage=28800',
-        })
+        }),
     )
-    
+
     handler.openapi(openRoute, async ctx => {
         const { id } = ctx.req.valid('param')
         const { drizzle } = getConnection(ctx.env)
-        
-        const currentUser = ctx.get('user')
-        const isAdmin = currentUser?.role === 'admin'
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
 
         try {
-            // Fetch all games, categories, and tags at once for lookup maps
             const [allGames, allCategories, allTags, assetResult] = await Promise.all([
                 drizzle.select().from(game),
                 drizzle.select().from(category),
@@ -118,11 +113,10 @@ export const AssetIdRoute = (handler: AppHandler) => {
                         uploadedBy: asset.uploadedBy,
                     })
                     .from(asset)
-                    .where(and(eq(asset.id, id), isGB ? eq(asset.isSuggestive, false) : undefined))
-                    .limit(1)
+                    .where(eq(asset.id, id))
+                    .limit(1),
             ])
 
-            // Create lookup maps for O(1) access
             const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
             const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
             const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
@@ -181,15 +175,19 @@ export const AssetIdRoute = (handler: AppHandler) => {
                     name: categoryInfo?.name || 'Unknown',
                     slug: categoryInfo?.slug || 'unknown',
                 },
-                tags: assetTags.map(tagLink => {
-                    const tag = tagMap[tagLink.tagId]
-                    return tag ? {
-                        id: tag.id,
-                        name: tag.name,
-                        slug: tag.slug,
-                        color: tag.color,
-                    } : null
-                }).filter((tag): tag is NonNullable<typeof tag> => tag !== null),
+                tags: assetTags
+                    .map(tagLink => {
+                        const tag = tagMap[tagLink.tagId]
+                        return tag
+                            ? {
+                                  id: tag.id,
+                                  name: tag.name,
+                                  slug: tag.slug,
+                                  color: tag.color,
+                              }
+                            : null
+                    })
+                    .filter((tag): tag is NonNullable<typeof tag> => tag !== null),
             }
 
             return ctx.json(

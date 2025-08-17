@@ -30,7 +30,10 @@ export const downloadHistoryToAsset = sqliteTable('download_history_to_asset', {
 
 export const downloadHistoryUserIdx = index('download_history_user_idx').on(downloadHistory.userId)
 export const downloadHistoryCreatedIdx = index('download_history_created_idx').on(downloadHistory.createdAt)
-export const downloadHistoryUserCreatedIdx = index('download_history_user_created_idx').on(downloadHistory.userId, downloadHistory.createdAt)
+export const downloadHistoryUserCreatedIdx = index('download_history_user_created_idx').on(
+    downloadHistory.userId,
+    downloadHistory.createdAt,
+)
 
 export const downloadHistoryToAssetHistoryIdx = index('dhta_history_idx').on(downloadHistoryToAsset.downloadHistoryId)
 export const downloadHistoryToAssetAssetIdx = index('dhta_asset_idx').on(downloadHistoryToAsset.assetId)

@@ -83,7 +83,7 @@ export const AuthRefreshDiscordRoute = (handler: AppHandler) => {
                 )
             }
 
-            const discordUser = await discordResponse.json() as {
+            const discordUser = (await discordResponse.json()) as {
                 id: string
                 username: string
                 global_name: string | null

@@ -8,8 +8,16 @@ import { eq, desc, inArray, like, and, sql, asc, type SQL } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, savedAsset, user } from '~/lib/db/schema'
 
 const querySchema = z.object({
-    page: z.string().optional().default('1').transform(val => parseInt(val, 10)),
-    limit: z.string().optional().default('20').transform(val => Math.min(100, Math.max(1, parseInt(val, 10)))),
+    page: z
+        .string()
+        .optional()
+        .default('1')
+        .transform(val => parseInt(val, 10)),
+    limit: z
+        .string()
+        .optional()
+        .default('20')
+        .transform(val => Math.min(100, Math.max(1, parseInt(val, 10)))),
     search: z.string().optional(),
     games: z.string().optional().describe('Comma-separated list of game slugs to filter by'),
     categories: z.string().optional().describe('Comma-separated list of category slugs to filter by'),
@@ -85,38 +93,41 @@ const openRoute = createRoute({
 
 export const UserSavedAssetsListRoute = (handler: AppHandler) => {
     handler.use('/saved-assets', requireAuth)
-    // REMOVED CACHE - user-specific data should NEVER be cached globally
 
     handler.openapi(openRoute, async ctx => {
         const currentUser = ctx.get('user')
         if (!currentUser) {
             return ctx.json({ success: false, message: 'Unauthorized' }, 401)
         }
-        const isAdmin = currentUser.role === 'admin'
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
         const { drizzle } = getConnection(ctx.env)
         const { page, limit, search, games, categories, tags, sortBy, sortOrder } = ctx.req.valid('query')
 
         try {
             const [allGames, allCategories, allTags] = await Promise.all([
-                drizzle.select({
-                    id: game.id,
-                    name: game.name,
-                    slug: game.slug,
-                    lastUpdated: game.lastUpdated,
-                    assetCount: game.assetCount,
-                }).from(game),
-                drizzle.select({
-                    id: category.id,
-                    name: category.name,
-                    slug: category.slug,
-                }).from(category),
-                drizzle.select({
-                    id: tag.id,
-                    name: tag.name,
-                    slug: tag.slug,
-                    color: tag.color,
-                }).from(tag),
+                drizzle
+                    .select({
+                        id: game.id,
+                        name: game.name,
+                        slug: game.slug,
+                        lastUpdated: game.lastUpdated,
+                        assetCount: game.assetCount,
+                    })
+                    .from(game),
+                drizzle
+                    .select({
+                        id: category.id,
+                        name: category.name,
+                        slug: category.slug,
+                    })
+                    .from(category),
+                drizzle
+                    .select({
+                        id: tag.id,
+                        name: tag.name,
+                        slug: tag.slug,
+                        color: tag.color,
+                    })
+                    .from(tag),
             ])
 
             const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
@@ -124,21 +135,18 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
             const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
 
             const conditions: SQL[] = [eq(savedAsset.userId, currentUser.id)]
-            
-            if (isGB) {
-                conditions.push(eq(asset.isSuggestive, false))
-            }
-            
+
             if (search) {
                 conditions.push(like(asset.name, `%${search}%`))
             }
 
             if (games) {
-                const gamesSlugs = games.split(',').map(s => s.trim()).filter(Boolean)
+                const gamesSlugs = games
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
                 if (gamesSlugs.length > 0) {
-                    const gameIds = allGames
-                        .filter(g => gamesSlugs.includes(g.slug))
-                        .map(g => g.id)
+                    const gameIds = allGames.filter(g => gamesSlugs.includes(g.slug)).map(g => g.id)
                     if (gameIds.length > 0) {
                         conditions.push(inArray(asset.gameId, gameIds))
                     }
@@ -146,11 +154,12 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
             }
 
             if (categories) {
-                const categorySlugs = categories.split(',').map(s => s.trim()).filter(Boolean)
+                const categorySlugs = categories
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
                 if (categorySlugs.length > 0) {
-                    const categoryIds = allCategories
-                        .filter(c => categorySlugs.includes(c.slug))
-                        .map(c => c.id)
+                    const categoryIds = allCategories.filter(c => categorySlugs.includes(c.slug)).map(c => c.id)
                     if (categoryIds.length > 0) {
                         conditions.push(inArray(asset.categoryId, categoryIds))
                     }
@@ -159,13 +168,13 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
 
             let tagFilteredAssetIds: string[] | null = null
             if (tags) {
-                const tagSlugs = tags.split(',').map(s => s.trim()).filter(Boolean)
+                const tagSlugs = tags
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
                 if (tagSlugs.length > 0) {
-                    const tagIds = await drizzle
-                        .select({ id: tag.id })
-                        .from(tag)
-                        .where(inArray(tag.slug, tagSlugs))
-                    
+                    const tagIds = await drizzle.select({ id: tag.id }).from(tag).where(inArray(tag.slug, tagSlugs))
+
                     if (tagIds.length > 0) {
                         const tagIdList = tagIds.map(t => t.id)
                         const taggedAssets = await drizzle

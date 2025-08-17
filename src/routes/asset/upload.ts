@@ -155,9 +155,9 @@ class AssetUploadService {
             const uploadedFile = await this.env.CDN.put(path, arrayBuffer, {
                 httpMetadata: {
                     contentType: file.type || 'application/octet-stream',
-                }
+                },
             })
-            
+
             if (!uploadedFile) {
                 console.error('Upload failed - no result returned from CDN.put')
                 return false
@@ -211,7 +211,6 @@ class AssetUploadService {
             )
         }
     }
-
 }
 
 const uploadRoute = createRoute({
@@ -249,7 +248,7 @@ export const AssetUploadRoute = (handler: AppHandler) => {
         try {
             const { drizzle } = getConnection(ctx.env)
             const user = ctx.get('user') as User | undefined
-            
+
             if (!user) {
                 return ctx.json({ success: false, message: 'Unauthorized' }, 401)
             }

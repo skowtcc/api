@@ -5,8 +5,7 @@ import type { Env } from '~/lib/handler'
 import * as schema from '~/lib/db/schema'
 
 class LoggerWrapper implements Logger {
-    logQuery(query: string, params: unknown[]): void {
-    }
+    logQuery(query: string, params: unknown[]): void {}
 }
 
 export function getConnection(env: Env) {

@@ -120,10 +120,9 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
         if (!currentUser || currentUser.role !== 'admin') {
             return ctx.json({ success: false, message: 'Admin access required' }, 403)
         }
-        
+
         const { drizzle } = getConnection(ctx.env)
-        
-        // Fetch all games, categories, tags, and pending assets at once
+
         const [allGames, allCategories, allTags, pendingAssets] = await Promise.all([
             drizzle.select().from(game),
             drizzle.select().from(category),
@@ -146,22 +145,24 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
                 .from(asset)
                 .innerJoin(user, eq(asset.uploadedBy, user.id))
                 .where(eq(asset.status, 'pending'))
-                .orderBy(desc(asset.createdAt))
+                .orderBy(desc(asset.createdAt)),
         ])
 
-        // Create lookup maps for O(1) access
         const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
         const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
         const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
 
         const assetIds = pendingAssets.map(a => a.id)
-        const assetTags = assetIds.length > 0 ? await drizzle
-            .select({
-                assetId: assetToTag.assetId,
-                tagId: assetToTag.tagId,
-            })
-            .from(assetToTag)
-            .where(inArray(assetToTag.assetId, assetIds)) : []
+        const assetTags =
+            assetIds.length > 0
+                ? await drizzle
+                      .select({
+                          assetId: assetToTag.assetId,
+                          tagId: assetToTag.tagId,
+                      })
+                      .from(assetToTag)
+                      .where(inArray(assetToTag.assetId, assetIds))
+                : []
 
         const uploaderIds = pendingAssets.map(a => a.uploadedBy)
         const uploaders = await drizzle
@@ -175,7 +176,6 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
 
         const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
 
-        // Group tags by asset and map using tagMap
         const tagsByAsset = assetTags.reduce(
             (acc, tagLink) => {
                 if (!acc[tagLink.assetId]) {
@@ -198,7 +198,7 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
         const formattedAssets = pendingAssets.map(a => {
             const gameInfo = gameMap[a.gameId]
             const categoryInfo = categoryMap[a.categoryId]
-            
+
             return {
                 id: a.id,
                 name: a.name,

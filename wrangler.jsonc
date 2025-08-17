@@ -26,18 +26,16 @@
         "bindings": [
             {
                 "name": "RATE_LIMITER",
-                "class_name": "DurableObjectRateLimiter"
-            }
-        ]
+                "class_name": "DurableObjectRateLimiter",
+            },
+        ],
     },
-            "migrations": [
-          {
+    "migrations": [
+        {
             "tag": "v1",
-            "new_classes": [
-              "DurableObjectRateLimiter"
-            ]
-          }
-        ]
+            "new_classes": ["DurableObjectRateLimiter"],
+        },
+    ],
     // "d1_databases": [
     //   {
     //     "binding": "MY_DB",

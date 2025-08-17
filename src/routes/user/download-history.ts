@@ -8,8 +8,16 @@ import { eq, desc, inArray, sql, and } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, user, downloadHistory, downloadHistoryToAsset } from '~/lib/db/schema'
 
 const querySchema = z.object({
-    page: z.string().optional().default('1').transform(val => parseInt(val, 10)),
-    limit: z.string().optional().default('20').transform(val => Math.min(50, Math.max(1, parseInt(val, 10)))),
+    page: z
+        .string()
+        .optional()
+        .default('1')
+        .transform(val => parseInt(val, 10)),
+    limit: z
+        .string()
+        .optional()
+        .default('20')
+        .transform(val => Math.min(50, Math.max(1, parseInt(val, 10)))),
 })
 
 const responseSchema = z.object({
@@ -18,35 +26,37 @@ const responseSchema = z.object({
         z.object({
             historyId: z.string(),
             downloadedAt: z.string(),
-            assets: z.array(z.object({
-                id: z.string(),
-                name: z.string(),
-                gameId: z.string(),
-                gameName: z.string(),
-                gameSlug: z.string(),
-                categoryId: z.string(),
-                categoryName: z.string(),
-                categorySlug: z.string(),
-                downloadCount: z.number(),
-                viewCount: z.number(),
-                size: z.number(),
-                extension: z.string(),
-                createdAt: z.string(),
-                isSuggestive: z.boolean(),
-                tags: z.array(
-                    z.object({
-                        id: z.string(),
-                        name: z.string(),
-                        slug: z.string(),
-                        color: z.string().nullable(),
-                    }),
-                ),
-                uploadedBy: z.object({
+            assets: z.array(
+                z.object({
                     id: z.string(),
-                    username: z.string().nullable(),
-                    image: z.string().nullable(),
+                    name: z.string(),
+                    gameId: z.string(),
+                    gameName: z.string(),
+                    gameSlug: z.string(),
+                    categoryId: z.string(),
+                    categoryName: z.string(),
+                    categorySlug: z.string(),
+                    downloadCount: z.number(),
+                    viewCount: z.number(),
+                    size: z.number(),
+                    extension: z.string(),
+                    createdAt: z.string(),
+                    isSuggestive: z.boolean(),
+                    tags: z.array(
+                        z.object({
+                            id: z.string(),
+                            name: z.string(),
+                            slug: z.string(),
+                            color: z.string().nullable(),
+                        }),
+                    ),
+                    uploadedBy: z.object({
+                        id: z.string(),
+                        username: z.string().nullable(),
+                        image: z.string().nullable(),
+                    }),
                 }),
-            })),
+            ),
         }),
     ),
     pagination: z.object({
@@ -83,38 +93,41 @@ const openRoute = createRoute({
 
 export const UserDownloadHistoryRoute = (handler: AppHandler) => {
     handler.use('/download-history', requireAuth)
-    // REMOVED CACHE - user-specific data should NEVER be cached globally
 
     handler.openapi(openRoute, async ctx => {
         const currentUser = ctx.get('user')
         if (!currentUser) {
             return ctx.json({ success: false, message: 'Unauthorized' }, 401)
         }
-        const isAdmin = currentUser.role === 'admin'
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
         const { drizzle } = getConnection(ctx.env)
         const { page, limit } = ctx.req.valid('query') // Fixed at 100 per page
 
         try {
             const [allGames, allCategories, allTags] = await Promise.all([
-                drizzle.select({
-                    id: game.id,
-                    name: game.name,
-                    slug: game.slug,
-                    lastUpdated: game.lastUpdated,
-                    assetCount: game.assetCount,
-                }).from(game),
-                drizzle.select({
-                    id: category.id,
-                    name: category.name,
-                    slug: category.slug,
-                }).from(category),
-                drizzle.select({
-                    id: tag.id,
-                    name: tag.name,
-                    slug: tag.slug,
-                    color: tag.color,
-                }).from(tag),
+                drizzle
+                    .select({
+                        id: game.id,
+                        name: game.name,
+                        slug: game.slug,
+                        lastUpdated: game.lastUpdated,
+                        assetCount: game.assetCount,
+                    })
+                    .from(game),
+                drizzle
+                    .select({
+                        id: category.id,
+                        name: category.name,
+                        slug: category.slug,
+                    })
+                    .from(category),
+                drizzle
+                    .select({
+                        id: tag.id,
+                        name: tag.name,
+                        slug: tag.slug,
+                        color: tag.color,
+                    })
+                    .from(tag),
             ])
 
             const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
@@ -168,13 +181,16 @@ export const UserDownloadHistoryRoute = (handler: AppHandler) => {
                 .from(downloadHistoryToAsset)
                 .where(inArray(downloadHistoryToAsset.downloadHistoryId, historyIds))
 
-            const assetsByHistory = assetLinks.reduce((acc, link) => {
-                if (!acc[link.historyId]) {
-                    acc[link.historyId] = []
-                }
-                acc[link.historyId]!.push(link.assetId)
-                return acc
-            }, {} as Record<string, string[]>)
+            const assetsByHistory = assetLinks.reduce(
+                (acc, link) => {
+                    if (!acc[link.historyId]) {
+                        acc[link.historyId] = []
+                    }
+                    acc[link.historyId]!.push(link.assetId)
+                    return acc
+                },
+                {} as Record<string, string[]>,
+            )
 
             const allAssetIds = [...new Set(assetLinks.map(l => l.assetId))]
 
@@ -215,12 +231,7 @@ export const UserDownloadHistoryRoute = (handler: AppHandler) => {
                     uploadedBy: asset.uploadedBy,
                 })
                 .from(asset)
-                .where(
-                    and(
-                        inArray(asset.id, allAssetIds),
-                        isGB ? eq(asset.isSuggestive, false) : undefined
-                    )
-                )
+                .where(inArray(asset.id, allAssetIds))
 
             const assetTags = await drizzle
                 .select({

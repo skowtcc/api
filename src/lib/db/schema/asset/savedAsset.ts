@@ -23,7 +23,10 @@ export const savedAssetUserIdx = index('saved_asset_user_idx').on(savedAsset.use
 export const savedAssetAssetIdx = index('saved_asset_asset_idx').on(savedAsset.assetId)
 export const savedAssetUserAssetIdx = index('saved_asset_user_asset_idx').on(savedAsset.userId, savedAsset.assetId)
 
-export const savedAssetUserCreatedIdx = index('saved_asset_user_created_idx').on(savedAsset.userId, savedAsset.createdAt)
+export const savedAssetUserCreatedIdx = index('saved_asset_user_created_idx').on(
+    savedAsset.userId,
+    savedAsset.createdAt,
+)
 export const savedAssetCreatedAtIdx = index('saved_asset_created_at_idx').on(savedAsset.createdAt)
 
 export const savedAssetRelations = relations(savedAsset, ({ one }) => ({

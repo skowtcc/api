@@ -8,19 +8,26 @@ import { getConnection } from '~/lib/db/connection'
 import { user } from '~/lib/db/schema'
 
 const requestSchema = z.object({
-    displayName: z.string().min(1).max(16).optional().transform((val) => val?.trim() || null),
+    displayName: z
+        .string()
+        .min(1)
+        .max(16)
+        .optional()
+        .transform(val => val?.trim() || null),
 })
 
 const responseSchema = z.object({
     success: z.boolean(),
     message: z.string(),
-    user: z.object({
-        id: z.string(),
-        name: z.string(),
-        displayName: z.string().nullable(),
-        email: z.string(),
-        image: z.string().nullable(),
-    }).optional(),
+    user: z
+        .object({
+            id: z.string(),
+            name: z.string(),
+            displayName: z.string().nullable(),
+            email: z.string(),
+            image: z.string().nullable(),
+        })
+        .optional(),
 })
 
 const updateAttributesRoute = createRoute({
@@ -79,17 +86,13 @@ export const UserUpdateAttributesRoute = (handler: AppHandler) => {
                 updateData.displayName = body.displayName
             }
 
-            const [updatedUser] = await drizzle
-                .update(user)
-                .set(updateData)
-                .where(eq(user.id, authUser.id))
-                .returning({
-                    id: user.id,
-                    name: user.name,
-                    displayName: user.displayName,
-                    email: user.email,
-                    image: user.image,
-                })
+            const [updatedUser] = await drizzle.update(user).set(updateData).where(eq(user.id, authUser.id)).returning({
+                id: user.id,
+                name: user.name,
+                displayName: user.displayName,
+                email: user.email,
+                image: user.image,
+            })
 
             if (!updatedUser) {
                 return ctx.json(

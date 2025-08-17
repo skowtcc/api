@@ -6,7 +6,7 @@ import { Env } from '~/lib/handler'
 
 export function createAuth(env: Env) {
     const { drizzle } = getConnection(env)
-    
+
     return betterAuth({
         basePath: '/auth',
         database: drizzleAdapter(drizzle, {
@@ -34,29 +34,30 @@ export function createAuth(env: Env) {
             },
         },
         emailAndPassword: {
-            enabled: false
+            enabled: false,
         },
         session: {
             cookieCache: {
                 enabled: true,
-                maxAge: 5 * 60, // (seconds) 
-            }
+                maxAge: 5 * 60, // (seconds)
+            },
         },
         user: {
-            modelName: "user",
+            modelName: 'user',
             additionalFields: {
                 role: {
-                    type: "string",
+                    type: 'string',
                     required: false,
                     input: false,
-                    defaultValue: "user",
+                    defaultValue: 'user',
                 },
                 displayName: {
-                    type: "string",
+                    type: 'string',
                     required: false,
                 },
             },
-    }})
+        },
+    })
 }
 
 export type Auth = ReturnType<typeof createAuth>

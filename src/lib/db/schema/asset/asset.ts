@@ -46,7 +46,11 @@ export const assetSuggestiveStatusIdx = index('asset_suggestive_status_idx').on(
 export const assetCreatedAtIdx = index('asset_created_at_idx').on(asset.createdAt)
 export const assetUploadedByIdx = index('asset_uploaded_by_idx').on(asset.uploadedBy)
 
-export const assetGameCategoryStatusIdx = index('asset_game_category_status_idx').on(asset.gameId, asset.categoryId, asset.status)
+export const assetGameCategoryStatusIdx = index('asset_game_category_status_idx').on(
+    asset.gameId,
+    asset.categoryId,
+    asset.status,
+)
 export const assetStatusCreatedIdx = index('asset_status_created_idx').on(asset.status, asset.createdAt)
 
 export const assetRelations = relations(asset, ({ one, many }) => ({
