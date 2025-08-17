@@ -5,7 +5,7 @@ import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 import { downloadHistory, downloadHistoryToAsset } from '~/lib/db/schema/asset/downloadHistory'
 import { asset } from '~/lib/db/schema/asset/asset'
-import { desc, eq, inArray } from 'drizzle-orm'
+import { desc, eq, inArray, sql, asc } from 'drizzle-orm'
 import { requireAuth } from '~/lib/auth/middleware'
 
 const postBodySchema = z.object({
@@ -64,6 +64,9 @@ export const AssetDownloadHistoryPostRoute = (handler: AppHandler) => {
     handler.openapi(postRoute, async ctx => {
         const { assetIds } = ctx.req.valid('json')
         const user = ctx.get('user')
+        if (!user) {
+            return ctx.json({ success: false, message: 'Unauthorized' }, 401)
+        }
         const { drizzle } = getConnection(ctx.env)
 
         const assets = await drizzle.select().from(asset).where(inArray(asset.id, assetIds))
@@ -74,6 +77,36 @@ export const AssetDownloadHistoryPostRoute = (handler: AppHandler) => {
 
         let historyId: string | undefined
         await drizzle.transaction(async tx => {
+            const [countResult] = await tx
+                .select({ count: sql<number>`count(*)` })
+                .from(downloadHistory)
+                .where(eq(downloadHistory.userId, user.id))
+
+            const currentCount = countResult?.count || 0
+
+            if (currentCount >= 500) {
+                const toDelete = currentCount - 499
+                
+                const oldestEntries = await tx
+                    .select({ id: downloadHistory.id })
+                    .from(downloadHistory)
+                    .where(eq(downloadHistory.userId, user.id))
+                    .orderBy(asc(downloadHistory.createdAt))
+                    .limit(toDelete)
+
+                if (oldestEntries.length > 0) {
+                    const idsToDelete = oldestEntries.map(e => e.id)
+                    
+                    await tx
+                        .delete(downloadHistoryToAsset)
+                        .where(inArray(downloadHistoryToAsset.downloadHistoryId, idsToDelete))
+                    
+                    await tx
+                        .delete(downloadHistory)
+                        .where(inArray(downloadHistory.id, idsToDelete))
+                }
+            }
+
             const [history] = await tx
                 .insert(downloadHistory)
                 .values({ userId: user.id })
@@ -101,6 +134,9 @@ export const AssetDownloadHistoryGetRoute = (handler: AppHandler) => {
     handler.use('/history', requireAuth)
     handler.openapi(getRoute, async ctx => {
         const user = ctx.get('user')
+        if (!user) {
+            return ctx.json({ success: false, message: 'Unauthorized' }, 401)
+        }
         const { drizzle } = getConnection(ctx.env)
 
         const histories = await drizzle

@@ -5,6 +5,8 @@ import { UserSavedAssetsListRoute } from './saved-assets-list'
 import { UserSaveAssetRoute } from './save-asset'
 import { UserUnsaveAssetRoute } from './unsave-asset'
 import { UserSavedAssetsIdRoute } from './saved-asset-id'
+import { UserUpdateAttributesRoute } from './update-attributes'
+import { UserDownloadHistoryRoute } from './download-history'
 
 export const UserHandler = new OpenAPIHono<{ Bindings: Env; Variables: AuthVariables }>()
 
@@ -14,3 +16,5 @@ UserSavedAssetsListRoute(UserHandler)
 UserSaveAssetRoute(UserHandler)
 UserUnsaveAssetRoute(UserHandler)
 UserSavedAssetsIdRoute(UserHandler)
+UserUpdateAttributesRoute(UserHandler)
+UserDownloadHistoryRoute(UserHandler)

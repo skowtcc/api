@@ -22,9 +22,10 @@ type FileValidationResult = { valid: true; extension: string } | { valid: false;
 
 type User = {
     id: string
-    username: string | null
+    name: string
     image: string | null
     role: 'admin' | 'contributor' | 'user'
+    displayName?: string | null
 }
 
 type UploadedAsset = {
@@ -150,8 +151,17 @@ class AssetUploadService {
 
     async uploadFileToStorage(file: File, path: string): Promise<boolean | null> {
         try {
-            const uploadedFile = (await this.env.CDN.put(path, file)) as R2Object
-            if (!uploadedFile) return false
+            const arrayBuffer = await file.arrayBuffer()
+            const uploadedFile = await this.env.CDN.put(path, arrayBuffer, {
+                httpMetadata: {
+                    contentType: file.type || 'application/octet-stream',
+                }
+            })
+            
+            if (!uploadedFile) {
+                console.error('Upload failed - no result returned from CDN.put')
+                return false
+            }
 
             return true
         } catch (error) {
@@ -202,88 +212,6 @@ class AssetUploadService {
         }
     }
 
-    async getGameAndCategoryNames(
-        gameId: string,
-        categoryId: string,
-    ): Promise<{ gameName: string; categoryName: string }> {
-        const [gameResult] = await this.drizzle
-            .select({ name: game.name })
-            .from(game)
-            .where(eq(game.id, gameId))
-            .limit(1)
-
-        const [categoryResult] = await this.drizzle
-            .select({ name: category.name })
-            .from(category)
-            .where(eq(category.id, categoryId))
-            .limit(1)
-
-        return {
-            gameName: gameResult?.name || 'Unknown Game',
-            categoryName: categoryResult?.name || 'Unknown Category',
-        }
-    }
-
-    async sendDiscordNotification(
-        asset: {
-            name: string
-            extension: string
-            gameId: string
-            categoryId: string
-            id: string
-            status: string
-            gameName?: string
-            categoryName?: string
-        },
-        user: { username: string | null; image: string | null; id: string },
-    ): Promise<void> {
-        if (!this.env.DISCORD_WEBHOOK) {
-            console.log('Discord webhook URL not configured')
-            return
-        }
-
-        console.log('Sending Discord notification for asset:', asset.name, 'status:', asset.status)
-
-        const isApproved = asset.status === 'approved'
-        const description = isApproved
-            ? `Uploaded [${asset.name}](https://wanderer.moe/asset/${asset.id}) [.${asset.extension.toUpperCase()}]`
-            : `Uploaded ${asset.name} [.${asset.extension.toUpperCase()}] for approval`
-
-        const footerText =
-            asset.gameName && asset.categoryName
-                ? `${asset.gameName} - ${asset.categoryName}`
-                : `${asset.gameId} - ${asset.categoryId}`
-
-        const embed = {
-            content: null,
-            embeds: [
-                {
-                    description,
-                    color: isApproved ? 3669788 : 12736511,
-                    author: { name: user.username || 'Unknown User', icon_url: user.image ? user.image : undefined },
-                    footer: { text: footerText },
-                    timestamp: new Date().toISOString(),
-                },
-            ],
-            attachments: [],
-        }
-
-        try {
-            const response = await fetch(this.env.DISCORD_WEBHOOK, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(embed),
-            })
-
-            if (!response.ok) {
-                console.error('Discord webhook failed with status:', response.status, await response.text())
-            } else {
-                console.log('Discord notification sent successfully')
-            }
-        } catch (error) {
-            console.error('Failed to send Discord webhook:', error)
-        }
-    }
 }
 
 const uploadRoute = createRoute({
@@ -320,9 +248,13 @@ export const AssetUploadRoute = (handler: AppHandler) => {
     handler.openapi(uploadRoute, async (ctx: Context) => {
         try {
             const { drizzle } = getConnection(ctx.env)
-            const user = ctx.get('fullUser') as User | undefined
+            const user = ctx.get('user') as User | undefined
+            
+            if (!user) {
+                return ctx.json({ success: false, message: 'Unauthorized' }, 401)
+            }
 
-            if (!user || !['admin', 'contributor'].includes(user.role)) {
+            if (!['admin', 'contributor'].includes(user.role)) {
                 return ctx.json(
                     {
                         success: false,
@@ -408,29 +340,13 @@ export const AssetUploadRoute = (handler: AppHandler) => {
             const tagIds = parseTags(tagsRaw)
             await uploadService.attachTags(assetId, tagIds)
 
-            const { gameName, categoryName } = await uploadService.getGameAndCategoryNames(gameId, categoryId)
-
-            await uploadService.sendDiscordNotification(
-                {
-                    id: assetId,
-                    name,
-                    extension: fileValidation.extension,
-                    gameId,
-                    categoryId,
-                    status,
-                    gameName,
-                    categoryName,
-                },
-                { username: user.username, image: user.image, id: user.id },
-            )
-
             const response: UploadedAsset = {
                 id: assetId,
                 name,
                 status,
                 uploadedBy: {
                     id: user.id,
-                    username: user.username,
+                    username: user.name,
                     image: user.image,
                 },
             }

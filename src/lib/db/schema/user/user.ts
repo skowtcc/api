@@ -8,8 +8,8 @@ export const user = sqliteTable('user', {
     id: text('id')
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-    name: text('name').notNull(),
-    username: text('username').unique(),
+    name: text('name').notNull().unique(),
+    displayName: text('display_name'),
     email: text('email').notNull().unique(),
     emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
     image: text('image'),
@@ -83,11 +83,17 @@ export const verification = sqliteTable('verification', {
 })
 
 export const userEmailIdx = index('user_email_idx').on(user.email)
-export const userUsernameIdx = index('user_username_idx').on(user.username)
+export const userUsernameIdx = index('user_username_idx').on(user.name)
 export const sessionTokenIdx = index('session_token_idx').on(session.token)
 export const sessionUserIdx = index('session_user_idx').on(session.userId)
 export const accountUserIdx = index('account_user_idx').on(account.userId)
 export const verificationIdentifierIdx = index('verification_identifier_idx').on(verification.identifier)
+
+export const accountUserProviderIdx = index('account_user_provider_idx').on(account.userId, account.providerId)
+export const accountProviderAccountIdx = index('account_provider_account_idx').on(account.providerId, account.accountId)
+
+export const sessionExpiryIdx = index('session_expiry_idx').on(session.expiresAt)
+export const sessionUserTokenIdx = index('session_user_token_idx').on(session.userId, session.token)
 
 export const userRelations = relations(user, ({ many }) => ({
     sessions: many(session),

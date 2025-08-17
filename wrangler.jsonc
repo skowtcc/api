@@ -1,6 +1,6 @@
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "api-wanderer",
+    "name": "api-skowt-cc",
     "main": "src/index.ts",
     "compatibility_date": "2025-07-18",
     // "compatibility_flags": [
@@ -22,6 +22,22 @@
             "preview_bucket_name": "cdn-asset-site",
         },
     ],
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "RATE_LIMITER",
+                "class_name": "DurableObjectRateLimiter"
+            }
+        ]
+    },
+            "migrations": [
+          {
+            "tag": "v1",
+            "new_classes": [
+              "DurableObjectRateLimiter"
+            ]
+          }
+        ]
     // "d1_databases": [
     //   {
     //     "binding": "MY_DB",

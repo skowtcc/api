@@ -5,6 +5,7 @@ import { like, and, eq, inArray, sql, desc, asc, type SQL } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
+import { cache } from 'hono/cache'
 
 const querySchema = z.object({
     name: z
@@ -170,10 +171,20 @@ const openRoute = createRoute({
 })
 
 export const AssetSearchRoute = (handler: AppHandler) => {
+    handler.use(
+        '/search',
+        cache({
+            cacheName: 'asset-search',
+            cacheControl: 'max-age=10, s-maxage=10',
+        })
+    )
+    
     handler.openapi(openRoute, async ctx => {
         const query = ctx.req.valid('query')
-
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB'
+        
+        const currentUser = ctx.get('user')
+        const isAdmin = currentUser?.role === 'admin'
+        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
 
         const { drizzle } = getConnection(ctx.env)
 
@@ -213,6 +224,21 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             : []
 
         try {
+            // Fetch all games, categories, and tags at once for lookup maps
+            const [allGames, allCategories, allTags] = await Promise.all([
+                drizzle.select().from(game),
+                drizzle.select().from(category),
+                drizzle.select().from(tag)
+            ])
+
+            // Create lookup maps for O(1) access
+            const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
+            const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
+            const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
+            const gameSlugMap = Object.fromEntries(allGames.map(g => [g.slug, g.id]))
+            const categorySlugMap = Object.fromEntries(allCategories.map(c => [c.slug, c.id]))
+            const tagSlugMap = Object.fromEntries(allTags.map(t => [t.slug, t.id]))
+
             const conditions: SQL<unknown>[] = []
 
             if (query.name) {
@@ -220,23 +246,37 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             }
 
             if (gameSlugs.length > 0) {
-                conditions.push(inArray(game.slug, gameSlugs))
+                const gameIds = gameSlugs
+                    .map(slug => gameSlugMap[slug])
+                    .filter((id): id is string => id !== undefined)
+                if (gameIds.length > 0) {
+                    conditions.push(inArray(asset.gameId, gameIds))
+                }
             }
 
             if (categorySlugs.length > 0) {
-                conditions.push(inArray(category.slug, categorySlugs))
+                const categoryIds = categorySlugs
+                    .map(slug => categorySlugMap[slug])
+                    .filter((id): id is string => id !== undefined)
+                if (categoryIds.length > 0) {
+                    conditions.push(inArray(asset.categoryId, categoryIds))
+                }
             }
 
             if (tagSlugs.length > 0) {
-                const tagSubquery = drizzle
-                    .select({ assetId: assetToTag.assetId })
-                    .from(assetToTag)
-                    .innerJoin(tag, eq(assetToTag.tagId, tag.id))
-                    .where(inArray(tag.slug, tagSlugs))
-                    .groupBy(assetToTag.assetId)
-                    .having(sql`COUNT(DISTINCT ${tag.slug}) = ${tagSlugs.length}`)
+                const tagIds = tagSlugs
+                    .map(slug => tagSlugMap[slug])
+                    .filter((id): id is string => id !== undefined)
+                if (tagIds.length > 0) {
+                    const tagSubquery = drizzle
+                        .select({ assetId: assetToTag.assetId })
+                        .from(assetToTag)
+                        .where(inArray(assetToTag.tagId, tagIds))
+                        .groupBy(assetToTag.assetId)
+                        .having(sql`COUNT(DISTINCT ${assetToTag.tagId}) = ${tagIds.length}`)
 
-                conditions.push(sql`${asset.id} IN (${tagSubquery})`)
+                    conditions.push(sql`${asset.id} IN (${tagSubquery})`)
+                }
             }
 
             const sortColumn = {
@@ -253,11 +293,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     id: asset.id,
                     name: asset.name,
                     gameId: asset.gameId,
-                    gameName: game.name,
-                    gameSlug: game.slug,
                     categoryId: asset.categoryId,
-                    categoryName: category.name,
-                    categorySlug: category.slug,
                     downloadCount: asset.downloadCount,
                     viewCount: asset.viewCount,
                     size: asset.size,
@@ -267,8 +303,6 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     uploadedBy: asset.uploadedBy,
                 })
                 .from(asset)
-                .innerJoin(game, eq(asset.gameId, game.id))
-                .innerJoin(category, eq(asset.categoryId, category.id))
                 .where(
                     and(
                         conditions.length > 0 ? and(...conditions) : undefined,
@@ -281,8 +315,6 @@ export const AssetSearchRoute = (handler: AppHandler) => {
             const countQuery = drizzle
                 .select({ count: sql<number>`COUNT(*)` })
                 .from(asset)
-                .innerJoin(game, eq(asset.gameId, game.id))
-                .innerJoin(category, eq(asset.categoryId, category.id))
                 .where(and(conditions.length > 0 ? and(...conditions) : undefined, eq(asset.status, 'approved')))
 
             const [assets, countResult] = await Promise.all([baseQuery.limit(limit).offset(offset), countQuery])
@@ -296,13 +328,9 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     ? await drizzle
                           .select({
                               assetId: assetToTag.assetId,
-                              tagId: tag.id,
-                              tagName: tag.name,
-                              tagSlug: tag.slug,
-                              tagColor: tag.color,
+                              tagId: assetToTag.tagId,
                           })
                           .from(assetToTag)
-                          .innerJoin(tag, eq(assetToTag.tagId, tag.id))
                           .where(inArray(assetToTag.assetId, assetIds))
                     : []
 
@@ -311,12 +339,15 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     if (!acc[tagLink.assetId]) {
                         acc[tagLink.assetId] = []
                     }
-                    acc[tagLink.assetId]!.push({
-                        id: tagLink.tagId,
-                        name: tagLink.tagName,
-                        slug: tagLink.tagSlug,
-                        color: tagLink.tagColor,
-                    })
+                    const tag = tagMap[tagLink.tagId]
+                    if (tag) {
+                        acc[tagLink.assetId]!.push({
+                            id: tag.id,
+                            name: tag.name,
+                            slug: tag.slug,
+                            color: tag.color,
+                        })
+                    }
                     return acc
                 },
                 {} as Record<string, any[]>,
@@ -328,7 +359,7 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     ? await drizzle
                           .select({
                               id: user.id,
-                              username: user.username,
+                              username: user.name,
                               image: user.image,
                           })
                           .from(user)
@@ -336,12 +367,21 @@ export const AssetSearchRoute = (handler: AppHandler) => {
                     : []
             const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
 
-            const formattedAssets = assets.map(asset => ({
-                ...asset,
-                createdAt: asset.createdAt.toISOString(),
-                tags: tagsByAsset[asset.id] || [],
-                uploadedBy: uploaderMap[asset.uploadedBy] || { id: asset.uploadedBy, username: null, image: null },
-            }))
+            const formattedAssets = assets.map(asset => {
+                const gameInfo = gameMap[asset.gameId]
+                const categoryInfo = categoryMap[asset.categoryId]
+                
+                return {
+                    ...asset,
+                    gameName: gameInfo?.name || 'Unknown',
+                    gameSlug: gameInfo?.slug || 'unknown',
+                    categoryName: categoryInfo?.name || 'Unknown',
+                    categorySlug: categoryInfo?.slug || 'unknown',
+                    createdAt: asset.createdAt.toISOString(),
+                    tags: tagsByAsset[asset.id] || [],
+                    uploadedBy: uploaderMap[asset.uploadedBy] || { id: asset.uploadedBy, username: null, image: null },
+                }
+            })
 
             return ctx.json(
                 {

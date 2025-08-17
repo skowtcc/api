@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
 import { user } from '../user/user'
 import { asset } from './asset'
 import { v7 as uuidv7 } from 'uuid'
@@ -27,6 +27,13 @@ export const downloadHistoryToAsset = sqliteTable('download_history_to_asset', {
         .notNull()
         .references(() => asset.id),
 })
+
+export const downloadHistoryUserIdx = index('download_history_user_idx').on(downloadHistory.userId)
+export const downloadHistoryCreatedIdx = index('download_history_created_idx').on(downloadHistory.createdAt)
+export const downloadHistoryUserCreatedIdx = index('download_history_user_created_idx').on(downloadHistory.userId, downloadHistory.createdAt)
+
+export const downloadHistoryToAssetHistoryIdx = index('dhta_history_idx').on(downloadHistoryToAsset.downloadHistoryId)
+export const downloadHistoryToAssetAssetIdx = index('dhta_asset_idx').on(downloadHistoryToAsset.assetId)
 
 export const downloadHistoryRelations = relations(downloadHistory, ({ one }) => ({
     user: one(user, {

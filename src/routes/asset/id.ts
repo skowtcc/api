@@ -5,6 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { asset, assetToTag, category, game, tag, user } from '~/lib/db/schema'
 import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
+import { cache } from 'hono/cache'
 
 const paramsSchema = z.object({
     id: z.string().openapi({
@@ -80,38 +81,51 @@ const openRoute = createRoute({
 })
 
 export const AssetIdRoute = (handler: AppHandler) => {
+    handler.use(
+        '/{id}',
+        cache({
+            cacheName: 'asset-by-id',
+            cacheControl: 'max-age=28800, s-maxage=28800',
+        })
+    )
+    
     handler.openapi(openRoute, async ctx => {
         const { id } = ctx.req.valid('param')
         const { drizzle } = getConnection(ctx.env)
-
-        const isGB = ctx.req.header('cf-ipcountry') === 'GB'
+        
+        const currentUser = ctx.get('user')
+        const isAdmin = currentUser?.role === 'admin'
+        const isGB = ctx.req.header('cf-ipcountry') === 'GB' && !isAdmin
 
         try {
-            const assetResult = await drizzle
-                .select({
-                    id: asset.id,
-                    name: asset.name,
-                    downloadCount: asset.downloadCount,
-                    viewCount: asset.viewCount,
-                    size: asset.size,
-                    extension: asset.extension,
-                    createdAt: asset.createdAt,
-                    gameId: game.id,
-                    gameSlug: game.slug,
-                    gameName: game.name,
-                    gameLastUpdated: game.lastUpdated,
-                    gameAssetCount: game.assetCount,
-                    categoryId: category.id,
-                    categoryName: category.name,
-                    categorySlug: category.slug,
-                    isSuggestive: asset.isSuggestive,
-                    uploadedBy: asset.uploadedBy,
-                })
-                .from(asset)
-                .innerJoin(game, eq(asset.gameId, game.id))
-                .innerJoin(category, eq(asset.categoryId, category.id))
-                .where(and(eq(asset.id, id), isGB ? eq(asset.isSuggestive, false) : undefined))
-                .limit(1)
+            // Fetch all games, categories, and tags at once for lookup maps
+            const [allGames, allCategories, allTags, assetResult] = await Promise.all([
+                drizzle.select().from(game),
+                drizzle.select().from(category),
+                drizzle.select().from(tag),
+                drizzle
+                    .select({
+                        id: asset.id,
+                        name: asset.name,
+                        downloadCount: asset.downloadCount,
+                        viewCount: asset.viewCount,
+                        size: asset.size,
+                        extension: asset.extension,
+                        createdAt: asset.createdAt,
+                        gameId: asset.gameId,
+                        categoryId: asset.categoryId,
+                        isSuggestive: asset.isSuggestive,
+                        uploadedBy: asset.uploadedBy,
+                    })
+                    .from(asset)
+                    .where(and(eq(asset.id, id), isGB ? eq(asset.isSuggestive, false) : undefined))
+                    .limit(1)
+            ])
+
+            // Create lookup maps for O(1) access
+            const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
+            const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
+            const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
 
             if (assetResult.length === 0) {
                 return ctx.json(
@@ -127,24 +141,23 @@ export const AssetIdRoute = (handler: AppHandler) => {
 
             const assetTags = await drizzle
                 .select({
-                    tagId: tag.id,
-                    tagName: tag.name,
-                    tagSlug: tag.slug,
-                    tagColor: tag.color,
+                    tagId: assetToTag.tagId,
                 })
                 .from(assetToTag)
-                .innerJoin(tag, eq(assetToTag.tagId, tag.id))
                 .where(eq(assetToTag.assetId, id))
 
             const uploader = await drizzle
                 .select({
                     id: user.id,
-                    username: user.username,
+                    username: user.name,
                     image: user.image,
                 })
                 .from(user)
                 .where(eq(user.id, assetData.uploadedBy))
                 .then(rows => rows[0] || { id: assetData.uploadedBy, username: null, image: null })
+
+            const gameInfo = gameMap[assetData.gameId]
+            const categoryInfo = categoryMap[assetData.categoryId]
 
             const formattedAsset = {
                 id: assetData.id,
@@ -158,22 +171,25 @@ export const AssetIdRoute = (handler: AppHandler) => {
                 uploadedBy: uploader,
                 game: {
                     id: assetData.gameId,
-                    slug: assetData.gameSlug,
-                    name: assetData.gameName,
-                    lastUpdated: assetData.gameLastUpdated.toISOString(),
-                    assetCount: assetData.gameAssetCount,
+                    slug: gameInfo?.slug || 'unknown',
+                    name: gameInfo?.name || 'Unknown',
+                    lastUpdated: gameInfo?.lastUpdated.toISOString() || new Date().toISOString(),
+                    assetCount: gameInfo?.assetCount || 0,
                 },
                 category: {
                     id: assetData.categoryId,
-                    name: assetData.categoryName,
-                    slug: assetData.categorySlug,
+                    name: categoryInfo?.name || 'Unknown',
+                    slug: categoryInfo?.slug || 'unknown',
                 },
-                tags: assetTags.map(tag => ({
-                    id: tag.tagId,
-                    name: tag.tagName,
-                    slug: tag.tagSlug,
-                    color: tag.tagColor,
-                })),
+                tags: assetTags.map(tagLink => {
+                    const tag = tagMap[tagLink.tagId]
+                    return tag ? {
+                        id: tag.id,
+                        name: tag.name,
+                        slug: tag.slug,
+                        color: tag.color,
+                    } : null
+                }).filter((tag): tag is NonNullable<typeof tag> => tag !== null),
             }
 
             return ctx.json(

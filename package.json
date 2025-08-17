@@ -1,5 +1,5 @@
 {
-    "name": "api",
+    "name": "api-skowt-cc",
     "version": "2.0.0b",
     "scripts": {
         "dev": "wrangler dev",

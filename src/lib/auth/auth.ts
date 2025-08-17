@@ -6,8 +6,9 @@ import { Env } from '~/lib/handler'
 
 export function createAuth(env: Env) {
     const { drizzle } = getConnection(env)
-
+    
     return betterAuth({
+        basePath: '/auth',
         database: drizzleAdapter(drizzle, {
             provider: 'sqlite',
             schema: {
@@ -18,13 +19,44 @@ export function createAuth(env: Env) {
                 verification: schema.verification,
             },
         }),
+        trustedOrigins: [
+            // 'http://localhost:8787',
+            // 'http://localhost:3000',
+            'https://skowt.cc',
+            'https://staging.skowt.cc',
+        ],
         secret: env.BETTER_AUTH_SECRET,
         baseURL: env.BETTER_AUTH_URL,
-        emailAndPassword: {
-            enabled: true,
-            requireEmailVerification: false,
+        socialProviders: {
+            discord: {
+                clientId: env.DISCORD_CLIENT_ID as string,
+                clientSecret: env.DISCORD_CLIENT_SECRET as string,
+            },
         },
-    })
+        emailAndPassword: {
+            enabled: false
+        },
+        session: {
+            cookieCache: {
+                enabled: true,
+                maxAge: 5 * 60, // (seconds) 
+            }
+        },
+        user: {
+            modelName: "user",
+            additionalFields: {
+                role: {
+                    type: "string",
+                    required: false,
+                    input: false,
+                    defaultValue: "user",
+                },
+                displayName: {
+                    type: "string",
+                    required: false,
+                },
+            },
+    }})
 }
 
 export type Auth = ReturnType<typeof createAuth>

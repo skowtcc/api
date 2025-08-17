@@ -1,23 +1,26 @@
 import { createMiddleware } from 'hono/factory'
 import { createAuth, type Auth } from '~/lib/auth/auth'
-import { getConnection } from '~/lib/db/connection'
-import { user } from '~/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import type { Session, User } from 'better-auth'
 
 export interface Env {
     BETTER_AUTH_SECRET: string
     BETTER_AUTH_URL: string
+    DISCORD_CLIENT_ID: string
+    DISCORD_CLIENT_SECRET: string
     TURSO_DATABASE_URL: string
     TURSO_DATABASE_AUTH_TOKEN?: string
     DISCORD_WEBHOOK?: string
     CDN: R2Bucket
+    RATE_LIMITER: DurableObjectNamespace<any>
 }
 
 export interface AuthVariables {
     auth: Auth
-    user?: any
-    session?: any
-    fullUser?: typeof user.$inferSelect
+    user?: User & {
+        role: string
+        displayName?: string
+    }
+    session?: Session
 }
 
 export const authMiddleware = createMiddleware<{
@@ -27,9 +30,12 @@ export const authMiddleware = createMiddleware<{
     const auth = createAuth({
         BETTER_AUTH_SECRET: c.env.BETTER_AUTH_SECRET,
         BETTER_AUTH_URL: c.env.BETTER_AUTH_URL,
+        DISCORD_CLIENT_ID: c.env.DISCORD_CLIENT_ID,
+        DISCORD_CLIENT_SECRET: c.env.DISCORD_CLIENT_SECRET,
         TURSO_DATABASE_URL: c.env.TURSO_DATABASE_URL,
         TURSO_DATABASE_AUTH_TOKEN: c.env.TURSO_DATABASE_AUTH_TOKEN,
         CDN: c.env.CDN,
+        RATE_LIMITER: c.env.RATE_LIMITER,
     })
 
     c.set('auth', auth)
@@ -42,21 +48,16 @@ export const requireAuth = createMiddleware<{
 }>(async (c, next) => {
     const auth = c.get('auth')
 
-    const { drizzle } = getConnection(c.env)
-
     try {
         const session = await auth.api.getSession({
             headers: c.req.raw.headers,
         })
 
-        if (!session) {
-            return c.json({ error: 'Unauthorized' }, 401)
+        if (!session || !session.user) {
+            return c.json({ success: 'False', error: 'Unauthorized' }, 401)
         }
 
-        const [fullUser] = await drizzle.select().from(user).where(eq(user.id, session.user.id))
-
-        c.set('user', session.user)
-        c.set('fullUser', fullUser)
+        c.set('user', session.user as User & { role: string; displayName?: string })
         c.set('session', session.session)
 
         await next()
@@ -69,7 +70,7 @@ export const requireAdminOrContributor = createMiddleware<{
     Bindings: Env
     Variables: AuthVariables
 }>(async (ctx, next) => {
-    const user = ctx.get('fullUser')
+    const user = ctx.get('user')
     if (!user || (user.role !== 'admin' && user.role !== 'contributor')) {
         return ctx.json({ success: false, message: 'Forbidden: Only admin or contributor can access this route' }, 403)
     }
@@ -80,7 +81,7 @@ export const requireAdmin = createMiddleware<{
     Bindings: Env
     Variables: AuthVariables
 }>(async (ctx, next) => {
-    const user = ctx.get('fullUser')
+    const user = ctx.get('user')
     if (!user || user.role !== 'admin') {
         return ctx.json({ success: false, message: 'Forbidden: Only admin can access this route' }, 403)
     }

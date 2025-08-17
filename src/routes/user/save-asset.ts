@@ -58,6 +58,9 @@ export const UserSaveAssetRoute = (handler: AppHandler) => {
     handler.openapi(openRoute, async ctx => {
         const { id: assetId } = ctx.req.valid('param')
         const currentUser = ctx.get('user')
+        if (!currentUser) {
+            return ctx.json({ success: false, message: 'Unauthorized' }, 401)
+        }
         const { drizzle } = getConnection(ctx.env)
 
         try {

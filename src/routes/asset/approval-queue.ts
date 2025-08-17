@@ -5,7 +5,7 @@ import { createRoute } from '@hono/zod-openapi'
 import { GenericResponses } from '~/lib/response-schemas'
 import { asset, user, game, category, tag, assetToTag } from '~/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
-import { requireAuth, requireAdmin } from '~/lib/auth/middleware'
+import { requireAuth } from '~/lib/auth/middleware'
 
 const responseSchema = z.object({
     success: z.boolean(),
@@ -114,58 +114,60 @@ const denyRoute = createRoute({
 })
 
 export const AssetApprovalQueueRoute = (handler: AppHandler) => {
-    handler.use('/approval-queue', requireAuth, requireAdmin)
+    handler.use('/approval-queue', requireAuth)
     handler.openapi(approvalQueueRoute, async ctx => {
+        const currentUser = ctx.get('user')
+        if (!currentUser || currentUser.role !== 'admin') {
+            return ctx.json({ success: false, message: 'Admin access required' }, 403)
+        }
+        
         const { drizzle } = getConnection(ctx.env)
-        const pendingAssets = await drizzle
-            .select({
-                id: asset.id,
-                name: asset.name,
-                downloadCount: asset.downloadCount,
-                viewCount: asset.viewCount,
-                size: asset.size,
-                extension: asset.extension,
-                status: asset.status,
-                createdAt: asset.createdAt,
-                gameId: game.id,
-                gameSlug: game.slug,
-                gameName: game.name,
-                gameLastUpdated: game.lastUpdated,
-                gameAssetCount: game.assetCount,
-                categoryId: category.id,
-                categoryName: category.name,
-                categorySlug: category.slug,
-                isSuggestive: asset.isSuggestive,
-                uploadedBy: asset.uploadedBy,
-            })
-            .from(asset)
-            .innerJoin(game, eq(asset.gameId, game.id))
-            .innerJoin(category, eq(asset.categoryId, category.id))
-            .innerJoin(user, eq(asset.uploadedBy, user.id))
-            .where(eq(asset.status, 'pending'))
-            .orderBy(desc(asset.createdAt))
+        
+        // Fetch all games, categories, tags, and pending assets at once
+        const [allGames, allCategories, allTags, pendingAssets] = await Promise.all([
+            drizzle.select().from(game),
+            drizzle.select().from(category),
+            drizzle.select().from(tag),
+            drizzle
+                .select({
+                    id: asset.id,
+                    name: asset.name,
+                    downloadCount: asset.downloadCount,
+                    viewCount: asset.viewCount,
+                    size: asset.size,
+                    extension: asset.extension,
+                    status: asset.status,
+                    createdAt: asset.createdAt,
+                    gameId: asset.gameId,
+                    categoryId: asset.categoryId,
+                    isSuggestive: asset.isSuggestive,
+                    uploadedBy: asset.uploadedBy,
+                })
+                .from(asset)
+                .innerJoin(user, eq(asset.uploadedBy, user.id))
+                .where(eq(asset.status, 'pending'))
+                .orderBy(desc(asset.createdAt))
+        ])
 
-        const assetTags = await drizzle
+        // Create lookup maps for O(1) access
+        const gameMap = Object.fromEntries(allGames.map(g => [g.id, g]))
+        const categoryMap = Object.fromEntries(allCategories.map(c => [c.id, c]))
+        const tagMap = Object.fromEntries(allTags.map(t => [t.id, t]))
+
+        const assetIds = pendingAssets.map(a => a.id)
+        const assetTags = assetIds.length > 0 ? await drizzle
             .select({
-                tagId: tag.id,
-                tagName: tag.name,
-                tagSlug: tag.slug,
-                tagColor: tag.color,
+                assetId: assetToTag.assetId,
+                tagId: assetToTag.tagId,
             })
             .from(assetToTag)
-            .innerJoin(tag, eq(assetToTag.tagId, tag.id))
-            .where(
-                inArray(
-                    assetToTag.assetId,
-                    pendingAssets.map(a => a.id),
-                ),
-            )
+            .where(inArray(assetToTag.assetId, assetIds)) : []
 
         const uploaderIds = pendingAssets.map(a => a.uploadedBy)
         const uploaders = await drizzle
             .select({
                 id: user.id,
-                username: user.username,
+                username: user.name,
                 image: user.image,
             })
             .from(user)
@@ -173,45 +175,64 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
 
         const uploaderMap = Object.fromEntries(uploaders.map(u => [u.id, u]))
 
-        const formattedAssets = pendingAssets.map(a => ({
-            id: a.id,
-            name: a.name,
-            status: a.status,
-            gameId: a.gameId,
-            categoryId: a.categoryId,
-            extension: a.extension,
-            uploadedBy: uploaderMap[a.uploadedBy]!,
-            game: {
-                id: a.gameId,
-                slug: a.gameSlug,
-                name: a.gameName,
-                lastUpdated: a.gameLastUpdated,
-                assetCount: a.gameAssetCount,
+        // Group tags by asset and map using tagMap
+        const tagsByAsset = assetTags.reduce(
+            (acc, tagLink) => {
+                if (!acc[tagLink.assetId]) {
+                    acc[tagLink.assetId] = []
+                }
+                const tag = tagMap[tagLink.tagId]
+                if (tag) {
+                    acc[tagLink.assetId]!.push({
+                        id: tag.id,
+                        name: tag.name,
+                        slug: tag.slug,
+                        color: tag.color,
+                    })
+                }
+                return acc
             },
-            category: {
-                id: a.categoryId,
-                name: a.categoryName,
-                slug: a.categorySlug,
-            },
-            tags: assetTags.map(t => ({
-                id: t.tagId,
-                name: t.tagName,
-                slug: t.tagSlug,
-                color: t.tagColor,
-            })),
-        }))
+            {} as Record<string, any[]>,
+        )
+
+        const formattedAssets = pendingAssets.map(a => {
+            const gameInfo = gameMap[a.gameId]
+            const categoryInfo = categoryMap[a.categoryId]
+            
+            return {
+                id: a.id,
+                name: a.name,
+                status: a.status,
+                gameId: a.gameId,
+                categoryId: a.categoryId,
+                extension: a.extension,
+                uploadedBy: uploaderMap[a.uploadedBy]!,
+                game: {
+                    id: a.gameId,
+                    slug: gameInfo?.slug || 'unknown',
+                    name: gameInfo?.name || 'Unknown',
+                    lastUpdated: gameInfo?.lastUpdated || new Date(),
+                    assetCount: gameInfo?.assetCount || 0,
+                },
+                category: {
+                    id: a.categoryId,
+                    name: categoryInfo?.name || 'Unknown',
+                    slug: categoryInfo?.slug || 'unknown',
+                },
+                tags: tagsByAsset[a.id] || [],
+            }
+        })
 
         return ctx.json({ success: true, assets: formattedAssets }, 200)
     })
 }
 
 export const AssetApproveRoute = (handler: AppHandler) => {
-    handler.use('/{id}/approve', requireAuth, requireAdmin)
+    handler.use('/:id/approve', requireAuth)
     handler.openapi(approveRoute, async ctx => {
-        const user = ctx.get('user')
-
-        if (!user) {
-            return ctx.json({ success: false, message: 'User context failed' }, 401)
+        const currentUser = ctx.get('user')
+        if (!currentUser || currentUser.role !== 'admin') {
+            return ctx.json({ success: false, message: 'Admin access required' }, 403)
         }
 
         const id = ctx.req.param('id')
@@ -234,46 +255,16 @@ export const AssetApproveRoute = (handler: AppHandler) => {
         await ctx.env.CDN.put(`asset/${foundAsset.id}.${foundAsset.extension}`, file.body)
         await ctx.env.CDN.delete(`limbo/${foundAsset.id}.${foundAsset.extension}`)
 
-        if (ctx.env.DISCORD_WEBHOOK) {
-            try {
-                await fetch(ctx.env.DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: null,
-                        embeds: [
-                            {
-                                description: `Approved [${foundAsset.name}](https://wanderer.moe/asset/${foundAsset.id}) [.${foundAsset.extension.toUpperCase()}]`,
-                                color: 3669788,
-                                author: {
-                                    name: user.username,
-                                    icon_url: user.image || undefined,
-                                },
-                                footer: {
-                                    text: `${foundAsset.gameId} - ${foundAsset.categoryId}`,
-                                },
-                                timestamp: new Date().toISOString(),
-                            },
-                        ],
-                        attachments: [],
-                    }),
-                })
-            } catch (err) {
-                console.error('Failed to send webhook', err)
-            }
-        }
-
         return ctx.json({ success: true }, 200)
     })
 }
 
 export const AssetDenyRoute = (handler: AppHandler) => {
-    handler.use('/{id}/deny', requireAuth, requireAdmin)
+    handler.use('/:id/deny', requireAuth)
     handler.openapi(denyRoute, async ctx => {
-        const user = ctx.get('user')
-
-        if (!user) {
-            return ctx.json({ success: false, message: 'User context failed' }, 401)
+        const currentUser = ctx.get('user')
+        if (!currentUser || currentUser.role !== 'admin') {
+            return ctx.json({ success: false, message: 'Admin access required' }, 403)
         }
 
         const { drizzle } = getConnection(ctx.env)
@@ -288,35 +279,6 @@ export const AssetDenyRoute = (handler: AppHandler) => {
         await drizzle.delete(asset).where(eq(asset.id, id))
 
         await ctx.env.CDN.delete(`limbo/${foundAsset.id}.${foundAsset.extension}`)
-
-        if (ctx.env.DISCORD_WEBHOOK) {
-            try {
-                await fetch(ctx.env.DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: null,
-                        embeds: [
-                            {
-                                description: `Denied ${foundAsset.name} [.${foundAsset.extension.toUpperCase()}]`,
-                                color: 16734039,
-                                author: {
-                                    name: user.username,
-                                    icon_url: user.image || undefined,
-                                },
-                                footer: {
-                                    text: `${foundAsset.gameId} - ${foundAsset.categoryId}`,
-                                },
-                                timestamp: new Date().toISOString(),
-                            },
-                        ],
-                        attachments: [],
-                    }),
-                })
-            } catch (err) {
-                console.error('Failed to send webhook', err)
-            }
-        }
 
         return ctx.json({ success: true }, 200)
     })
