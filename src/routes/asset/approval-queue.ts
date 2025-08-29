@@ -117,7 +117,11 @@ export const AssetApprovalQueueRoute = (handler: AppHandler) => {
     handler.use('/approval-queue', requireAuth)
     handler.openapi(approvalQueueRoute, async ctx => {
         const currentUser = ctx.get('user')
-        if (!currentUser || currentUser.role !== 'admin') {
+        if (!currentUser) {
+            return ctx.json({ success: false, message: 'Admin access required' }, 403)
+        }
+
+        if (currentUser.role !== 'admin') {
             return ctx.json({ success: false, message: 'Admin access required' }, 403)
         }
 

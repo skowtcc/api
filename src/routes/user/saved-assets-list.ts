@@ -194,7 +194,6 @@ export const UserSavedAssetsListRoute = (handler: AppHandler) => {
                 }
             }
 
-
             let orderByClause
             switch (sortBy) {
                 case 'viewCount':

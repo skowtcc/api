@@ -33,11 +33,11 @@ export function createAuth(env: Env) {
                 overrideUserInfoOnSignIn: true,
                 clientId: env.DISCORD_CLIENT_ID as string,
                 clientSecret: env.DISCORD_CLIENT_SECRET as string,
-                mapProfileToUser: async (profile) => {
+                mapProfileToUser: async profile => {
                     return {
                         name: profile.username,
                         displayName: profile.global_name || profile.username,
-                    };
+                    }
                 },
             },
         },

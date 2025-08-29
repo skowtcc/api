@@ -42,7 +42,7 @@ export const CategoryAllRoute = (handler: AppHandler) => {
         '/all',
         cache({
             cacheName: 'category-all',
-            cacheControl: 'max-age=43200, s-maxage=43200',
+            cacheControl: 'max-age=300, s-maxage=300',
         }),
     )
 

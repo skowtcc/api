@@ -51,7 +51,7 @@ export const GameAllRoute = (handler: AppHandler) => {
         '/all',
         cache({
             cacheName: 'game-all',
-            cacheControl: 'max-age=43200, s-maxage=43200',
+            cacheControl: 'max-age=300, s-maxage=300',
         }),
     )
 
