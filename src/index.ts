@@ -18,6 +18,8 @@ app.use(
     '/*',
     cors({
         origin: [
+            // ! dev note: dont question it please, i'm too lazy
+            // skowt is being rewritten into a monorepo anyways so this is fine cuz im never gonna edit ts again
             // 'http://localhost:8787',
             // 'http://localhost:3000',
             'https://skowt.cc',

@@ -43,7 +43,7 @@
         "@oslojs/encoding": "^1.1.0",
         "@scalar/hono-api-reference": "^0.5.170",
         "@typescript-eslint/eslint-plugin": "^8.23.0",
-        "better-auth": "^1.2.10",
+        "better-auth": "^1.4.5",
         "better-sqlite3": "^11.8.1",
         "dayjs": "^1.11.13",
         "drizzle-orm": "^0.34.1",
