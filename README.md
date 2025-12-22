@@ -1,3 +1,6 @@
+> [!NOTE]  
+> this repo will either be archived or migrated as skowt transitions to a monorepo setup. out of goodwill, the current API will remain available as a reference, either here or in a `cloudflare-old` branch.
+
 skowt.cc's backend/api
 
 api subdomain: den.skowt.cc
