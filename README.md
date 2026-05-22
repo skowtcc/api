@@ -1,5 +1,5 @@
 > [!NOTE]  
-> this repo will either be archived or migrated as skowt transitions to a monorepo setup. out of goodwill, the current API will remain available as a reference, either here or in a `cloudflare-old` branch.
+> This repository is archived. The current source code for skowt will be staying closed-source for the forseeable future, or unless I ([@dromzeh](https://dromzeh.dev/)) decide to make it open-source again. This is an old API version built on Cloudflare Workers that's kept up for old transparency purposes only.
 
 skowt.cc's backend/api
 
