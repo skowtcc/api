@@ -1,0 +1,37 @@
+{
+  "name": "@skowt-monorepo/db",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc --noEmit",
+    "db:local": "turso dev --db-file local.db",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:fts": "bun run src/ensure-fts.ts",
+    "db:seed": "bun run src/seed.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@skowt-monorepo/env": "workspace:*",
+    "@skowt-monorepo/observability": "workspace:*",
+    "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "uuid": "^13.0.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@skowt-monorepo/config": "workspace:*",
+    "drizzle-kit": "^0.31.2",
+    "tsdown": "catalog:"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,6 @@
+[test]
+# preload order matters: setup-globals must install jsdom on globalThis BEFORE
+# setup.ts imports @testing-library/react (which transitively pulls in
+# @testing-library/dom; that module captures `document.body` at module-load and
+# leaves screen.* queries throwing if document was undefined at the time).
+preload = ["./src/__tests__/setup-globals.ts", "./src/__tests__/setup.ts"]

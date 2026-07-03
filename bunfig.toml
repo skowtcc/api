@@ -1,0 +1,24 @@
+[install]
+linker = "isolated"
+
+# Supply-chain defense: reject any package version published <7 days ago.
+# Most malicious package versions get caught + unpublished within 24-72h
+# (e.g., Shai-Hulud, qix/chalk, axios RAT, fumadocs 2026-05). The cooldown
+# trades a one-week patch latency for blast-radius reduction on new attacks.
+# Only affects resolution (bun add / bun update / lockfile drift); pinned
+# versions in bun.lock install regardless of age.
+minimumReleaseAge = 604800 # seconds = 7 days
+
+# Allowlist — keep this list tight. Every entry is a hole. Add only
+# packages where the latency hurts more than the cooldown helps.
+minimumReleaseAgeExcludes = [
+  "@types/node",
+  "@types/bun",
+  "@types/react",
+  "evlog", # first-party — I publish this
+]
+
+[test]
+# Preload runs before any test file's imports. Needed so env vars are set BEFORE
+# packages/db/src/index.ts calls getServerEnv() at module-load time.
+preload = ["./packages/api/src/__tests__/_env-preload.ts"]

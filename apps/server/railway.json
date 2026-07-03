@@ -1,0 +1,10 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "bun install && bunx turbo run build --filter=server"
+  },
+  "deploy": {
+    "preDeployCommand": "bunx turbo -F @skowt-monorepo/db db:migrate",
+    "startCommand": "bun run --filter=server start"
+  }
+}

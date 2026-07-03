@@ -1,0 +1,70 @@
+# Skowt Development Infrastructure
+# Run with: docker compose -f docker-compose.dev.yml up -d
+#
+# Ports are offset from Originoid to allow running both simultaneously:
+# - LibSQL: 8082 (Originoid uses 8081)
+# - Redis: 6383 (Originoid uses 6380-6382)
+# - LocalStack S3: 9004 (Originoid uses 9002)
+
+services:
+  # LibSQL database (Turso-compatible)
+  libsql:
+    image: ghcr.io/tursodatabase/libsql-server:latest
+    container_name: skowt-libsql
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      - SQLD_NODE=primary
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:alpine
+    container_name: skowt-redis
+    ports:
+      - "127.0.0.1:6383:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # LocalStack for S3-compatible storage
+  localstack:
+    image: localstack/localstack:latest
+    container_name: skowt-localstack
+    ports:
+      - "127.0.0.1:9004:4566"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=localstack
+      - AWS_SECRET_ACCESS_KEY=localstack
+    healthcheck:
+      test: ["CMD", "awslocal", "s3", "ls"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  # LocalStack bucket auto-creation
+  localstack-setup:
+    image: localstack/localstack:latest
+    container_name: skowt-localstack-setup
+    depends_on:
+      localstack:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      awslocal s3 mb s3://skowt-assets --endpoint-url=http://localstack:4566;
+      awslocal s3api put-bucket-cors --bucket skowt-assets --endpoint-url=http://localstack:4566 --cors-configuration '{\"CORSRules\":[{\"AllowedOrigins\":[\"*\"],\"AllowedMethods\":[\"GET\",\"PUT\",\"POST\",\"HEAD\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"]}]}';
+      awslocal s3api put-bucket-policy --bucket skowt-assets --endpoint-url=http://localstack:4566 --policy '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"PublicReadGetObject\",\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::skowt-assets/*\"}]}';
+      exit 0;
+      "
+
+networks:
+  default:
+    name: skowt-dev

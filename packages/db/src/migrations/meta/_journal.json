@@ -1,0 +1,104 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1753296675886,
+      "tag": "0000_workable_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1753353855162,
+      "tag": "0001_faulty_slayback",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1755362385359,
+      "tag": "0002_dapper_golden_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1755362508108,
+      "tag": "0003_groovy_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1766766313252,
+      "tag": "0004_clear_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1766903422800,
+      "tag": "0005_colossal_alice",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1779118096864,
+      "tag": "0006_giant_paibok",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1779119533255,
+      "tag": "0007_light_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1782865507679,
+      "tag": "0008_supreme_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1782910568617,
+      "tag": "0009_soft_jamie_braddock",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1782913657287,
+      "tag": "0010_asset_name_fts5",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1782935593250,
+      "tag": "0011_restore_drifted_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1783021166326,
+      "tag": "0012_fixed_paladin",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1783045721483,
+      "tag": "0013_asset_name_nocase_idx",
+      "breakpoints": true
+    }
+  ]
+}

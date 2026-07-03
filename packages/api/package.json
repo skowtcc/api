@@ -1,0 +1,38 @@
+{
+  "name": "@skowt-monorepo/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc --noEmit",
+    "test": "bun test src/",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
+  },
+  "dependencies": {
+    "@skowt-monorepo/auth": "workspace:*",
+    "@skowt-monorepo/db": "workspace:*",
+    "@skowt-monorepo/env": "workspace:*",
+    "@skowt-monorepo/observability": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "elysia": "catalog:",
+    "ioredis": "^5.8.2",
+    "sharp": "^0.35.2",
+    "uuid": "^13.0.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@libsql/client": "^0.17.4",
+    "@skowt-monorepo/config": "workspace:*",
+    "tsdown": "catalog:"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

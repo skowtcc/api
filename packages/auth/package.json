@@ -1,0 +1,27 @@
+{
+  "name": "@skowt-monorepo/auth",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@skowt-monorepo/db": "workspace:*",
+    "@skowt-monorepo/env": "workspace:*",
+    "@skowt-monorepo/observability": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "ioredis": "^5.10.1"
+  },
+  "devDependencies": {
+    "@skowt-monorepo/config": "workspace:*",
+    "tsdown": "catalog:"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

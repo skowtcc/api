@@ -1,0 +1,2 @@
+ALTER TABLE `user` ADD `profile_updated_at` integer;--> statement-breakpoint
+UPDATE `user` SET `profile_updated_at` = unixepoch() - abs(random() % (7 * 24 * 60 * 60)) WHERE `profile_updated_at` IS NULL;

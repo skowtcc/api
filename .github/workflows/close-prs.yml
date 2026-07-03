@@ -1,0 +1,32 @@
+name: close-prs
+
+# this is a read-only published mirror; development happens in a private
+# source-of-truth repo, so any pull request opened here is closed automatically.
+# scheduled (NOT pull_request_target) on purpose: it runs in the base repo
+# context with a scoped token and never checks out or executes untrusted PR
+# code, so it avoids the pull_request_target abuse surface entirely
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  close:
+    # only act on the public mirror, never on the private source repo
+    if: github.repository == 'skowtcc/monorepo'
+    runs-on: ubuntu-latest
+    steps:
+      - name: close any open pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr list --repo "$REPO" --state open --json number --jq '.[].number' | while read -r pr; do
+            [ -z "$pr" ] && continue
+            gh pr comment "$pr" --repo "$REPO" --body "This is a read-only published mirror of skowt.cc. Development happens in a private source-of-truth repo, so pull requests are not accepted here. See the README and LICENSE. Closing automatically."
+            gh pr close "$pr" --repo "$REPO"
+          done

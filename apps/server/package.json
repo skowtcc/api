@@ -1,0 +1,33 @@
+{
+  "name": "server",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc -b",
+    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+    "dev": "bun run --hot src/index.ts",
+    "dev:prod": "bun run --env-file .env --hot src/index.ts",
+    "start": "bun run dist/index.js"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.3.3",
+    "@skowt-monorepo/api": "workspace:*",
+    "@skowt-monorepo/auth": "workspace:*",
+    "@skowt-monorepo/db": "workspace:*",
+    "@skowt-monorepo/env": "workspace:*",
+    "@skowt-monorepo/observability": "workspace:*",
+    "@trpc/server": "catalog:",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "elysia": "catalog:",
+    "tweetnacl": "^1.0.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@skowt-monorepo/config": "workspace:*",
+    "@types/bun": "^1.2.6",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

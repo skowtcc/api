@@ -1,0 +1,9 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "bun install && bunx turbo run build --filter=web"
+  },
+  "deploy": {
+    "startCommand": "bun run --filter=web start"
+  }
+}

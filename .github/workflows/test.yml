@@ -1,0 +1,129 @@
+name: Test
+
+# Triggers stay on `pull_request` (NOT `pull_request_target`). pull_request_target
+# runs in the base-repo context with secrets exposed to forked PRs, which is
+# almost always a foot-gun. Never switch to pull_request_target without a
+# deliberate, documented threat-model review.
+on:
+  push:
+    branches: [main, dev, "marc/**"]
+  pull_request:
+    branches: [main, dev]
+
+# Workflow-level default: read-only token. Individual jobs elevate if they
+# need write access (none currently do).
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    # Services for integration tests.
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6381:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 5
+
+      libsql:
+        image: ghcr.io/tursodatabase/libsql-server:latest
+        ports:
+          - 8082:8080
+        env:
+          SQLD_NODE: primary
+
+    # These values are intentionally test-only — not real credentials.
+    # BETTER_AUTH_SECRET is a placeholder long enough to satisfy length
+    # validation; MinIO uses its default dev keys. None of these should
+    # ever be replaced with real secrets here (use repo secrets for that,
+    # but no current job needs them).
+    env:
+      NODE_ENV: test
+      DATABASE_URL: http://localhost:8082
+      DATABASE_AUTH_TOKEN: dev
+      BETTER_AUTH_SECRET: test-secret-32-characters-long!!
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ENDPOINT: http://localhost:9003
+      S3_BUCKET: skowt-assets
+      S3_CDN_URL: http://localhost:9003
+
+    steps:
+      # Third-party actions are SHA-pinned, not tag-pinned. Tags are mutable —
+      # an attacker who compromises the action's repo can repoint the tag at a
+      # malicious commit and CI silently picks it up. SHA pins are immutable.
+      # When bumping the version: update the SHA AND the comment together.
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Start MinIO
+        run: |
+          docker run -d -p 9003:9000 --name minio \
+            -e "MINIO_ACCESS_KEY=minioadmin" \
+            -e "MINIO_SECRET_KEY=minioadmin" \
+            minio/minio server /data
+          sleep 3
+          aws --endpoint-url http://127.0.0.1:9003/ s3 mb s3://skowt-assets
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          AWS_EC2_METADATA_DISABLED: true
+
+      - name: Wait for LibSQL
+        run: |
+          for i in {1..30}; do
+            curl -sf http://localhost:8082/health && break
+            echo "Waiting for LibSQL... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run type checking
+        run: bun run check-types
+
+      - name: Run tests
+        run: bun run test
+
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Lint (oxlint)
+        run: bun run lint
+
+      - name: Format check (oxfmt)
+        run: bun run format:check
+
+      - name: Secret allowlist guard
+        run: bun scripts/check-secrets.ts

@@ -1,0 +1,599 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════
+   skowt - flat soft-dark. Depth comes from soft ambient shadows, surface
+   contrast, and colour - never from hard rim-lines or borders. Role handles
+   and meaningful chips carry the accent glow; everything else stays calm and
+   friendly. Surfaces float toward the viewer on hover, settle in on press.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* canvas - pure neutral charcoal, no warm cast */
+  --background: oklch(0.205 0.008 285); /* soft dark, faint cool tint */
+  --background-deep: oklch(0.165 0.008 285); /* page floor */
+  --background-surface: oklch(0.245 0.009 285); /* raised surface */
+
+  /* ink */
+  --foreground: oklch(0.97 0 0);
+  --foreground-muted: oklch(0.62 0.012 285);
+
+  /* rims - inset hairlines used by the list-item selected state */
+  --rim-light: oklch(1 0 0 / 0.1);
+  --rim-shadow-soft: oklch(0 0 0 / 0.22);
+
+  /* "bronze" ramp - now the violet accent; token name kept so callers stay
+     stable. Used by primary CTA, wordmark, active filter. */
+  --bronze-top: oklch(0.7 0.16 285); /* accent light */
+  --bronze-face: oklch(0.62 0.18 285); /* accent - iris/violet, lively not enterprise */
+  --bronze-deep: oklch(0.5 0.17 285); /* accent deep */
+  --bronze-foreground: oklch(0.99 0 0); /* white text on accent */
+
+  /* chip tokens - shared across the translucent chip/badge surfaces */
+  --chip-violet: oklch(0.8 0.11 285); /* accent chip text + fill base */
+  --chip-neutral-fg: oklch(0.8 0.012 285); /* neutral chip text (size, version) */
+  --chip-neutral-bg: oklch(0.6 0.01 285); /* neutral chip fill base */
+  --discord: oklch(0.78 0.13 272); /* pastel blurple (stat chip) */
+
+  /* role color ramps - the -top values feed the role tokens below; the ruby
+     pair feeds --destructive */
+  --emerald-top: oklch(0.78 0.115 165);
+  --steel-top: oklch(0.78 0.08 230);
+  --ruby-face: oklch(0.55 0.18 25);
+  --ruby-foreground: oklch(0.98 0.015 25);
+
+  /* shadcn aliases - keep callers working, rewired to the site palette */
+  --card: var(--background-surface);
+  --card-foreground: var(--foreground);
+  --card-hover: oklch(
+    0.27 0.008 285
+  ); /* a calm, neutral lift on hover - stays in the deep register */
+  --popover: oklch(0.245 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: var(--bronze-face);
+  --primary-foreground: var(--bronze-foreground);
+  --secondary: var(--background-surface);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.265 0 0);
+  --muted-foreground: var(--foreground-muted);
+  --accent: oklch(0.285 0.022 285); /* subtle hover/active surface - NOT the primary */
+  --accent-foreground: var(--foreground);
+  --destructive: var(--ruby-face);
+  --destructive-foreground: var(--ruby-foreground);
+  --border: oklch(1 0 0 / 0.045); /* whisper-soft; depth comes from glow/contrast, not borders */
+  --input: var(--background-deep);
+  --ring: oklch(0.62 0.18 285 / 0.6);
+
+  /* sidebar - sunken rail */
+  --sidebar: oklch(0.165 0 0);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-width: 240px;
+
+  /* role tokens - brighter `-top` ramp so role-colored handles read on dark */
+  --role-contrib: var(--emerald-top);
+  --role-staff: var(--steel-top);
+  /* own value, not the ruby ramp: pastel-band L/C so it sits with the
+     other role chips, hue pulled off orange toward true red */
+  --role-developer: oklch(0.8 0.11 15);
+
+  /* fonts - sans-only. headers carry weight via tracking, not bold. */
+  --font-sans: "Outfit Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+
+  /* radius - slightly chunky for tactile feel */
+  --radius: 0.625rem; /* 10px */
+  --spacing: 0.25rem;
+
+  /* shadows - soft, diffuse, two-layer (ambient + contact). Depth here is a
+     gentle float toward the viewer, not a hard emboss. Each step keeps a wide
+     low-opacity ambient halo plus a tight contact shadow so surfaces lift off
+     the dark canvas without any rim-line. This is the new sense of depth. */
+  --shadow-2xs: 0 1px 2px 0 oklch(0 0 0 / 0.14);
+  --shadow-xs: 0 1px 3px 0 oklch(0 0 0 / 0.16);
+  --shadow-sm: 0 2px 6px -1px oklch(0 0 0 / 0.18), 0 1px 2px -1px oklch(0 0 0 / 0.12);
+  --shadow: 0 4px 12px -2px oklch(0 0 0 / 0.2), 0 2px 4px -2px oklch(0 0 0 / 0.14);
+  --shadow-md: 0 8px 20px -4px oklch(0 0 0 / 0.24), 0 3px 6px -3px oklch(0 0 0 / 0.16);
+  --shadow-lg: 0 16px 36px -8px oklch(0 0 0 / 0.3), 0 4px 10px -4px oklch(0 0 0 / 0.18);
+  --shadow-xl: 0 24px 50px -12px oklch(0 0 0 / 0.36), 0 6px 14px -6px oklch(0 0 0 / 0.2);
+  --shadow-2xl: 0 32px 64px -16px oklch(0 0 0 / 0.44), 0 8px 18px -8px oklch(0 0 0 / 0.22);
+
+  --tracking-normal: -0.01em;
+}
+
+.dark {
+  /* dark-mode-only site - .dark mirrors :root */
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-deep: var(--background-deep);
+  --color-background-surface: var(--background-surface);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-hover: var(--card-hover);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-bronze-top: var(--bronze-top);
+  --color-bronze-face: var(--bronze-face);
+  --color-bronze-deep: var(--bronze-deep);
+  --color-bronze-foreground: var(--bronze-foreground);
+  --color-role-contrib: var(--role-contrib);
+  --color-role-staff: var(--role-staff);
+  --color-role-developer: var(--role-developer);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --tracking-tighter: calc(var(--tracking-normal) - 0.02em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.01em);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: calc(var(--tracking-normal) + 0.02em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.04em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.08em);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   canvas - layered warm dark with subtle vignette + film grain
+   ═══════════════════════════════════════════════════════════════════════ */
+body {
+  letter-spacing: var(--tracking-normal);
+  background-color: var(--background);
+  min-height: 100dvh;
+  font-feature-settings: "ss01", "ss02", "cv01";
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  ::selection {
+    /* translucent chip-violet so text selection speaks the same soft-pill
+       language as the chips, not a solid block */
+    background: color-mix(in oklch, var(--chip-violet) 32%, transparent);
+    color: var(--foreground);
+  }
+
+  html {
+    @apply scroll-smooth text-foreground overflow-x-clip antialiased;
+    background: var(--background-deep);
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply text-foreground font-sans;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  body[data-scroll-locked] {
+    --removed-body-scroll-bar-size: 0 !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* tabular numbers for time, code, kbd */
+  :where(time, code, kbd, samp) {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(table, th, td) {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   layout utilities - carried over, unchanged
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@utility page-container {
+  @apply w-full px-6 md:px-8;
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility text-display {
+  /* sans-only headers: tighter tracking does the work, not bold weight */
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.028em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   surface materials
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* surface-raised: an elevated surface. Cards, secondary buttons, panels. Lifted
+   off the canvas by a soft ambient shadow - no rims, no borders, the float
+   itself is the depth. */
+@utility surface-raised {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+@utility surface-raised-pressable {
+  background: var(--card);
+  /* no explicit colour - inherits foreground by default, but lets callers
+     (e.g. the secondary Button variant) opt into muted text cleanly */
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+  cursor: pointer;
+
+  /* hover: the shadow blooms so it reads as lifting toward you - no positional
+     hop (that looks cheap on wide buttons), just elevation + a touch of warmth */
+  &:hover:not(:disabled) {
+    background: var(--card-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* press: shadow tucks back in, settling into the page */
+  &:active:not(:disabled) {
+    background: var(--card-hover);
+    box-shadow: var(--shadow-xs);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* surface-accent-solid: the accent material. Primary CTA, active filter, vip chip.
+   Stands out by colour, not outline - a soft violet glow halo pools beneath it. */
+@utility surface-accent-solid {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow:
+    var(--shadow-sm),
+    0 4px 16px -5px color-mix(in oklch, var(--primary) 55%, transparent);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+/* surface-accent-soft: the translucent chip language as a surface. Glowing violet
+   content on a soft violet fill - depth from colour + glow, never a solid block.
+   Use where a friendlier, lighter accent fits instead of solid surface-accent-solid. */
+@utility surface-accent-soft {
+  color: var(--chip-violet);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--primary) 30%, transparent) 0%,
+    color-mix(in oklch, var(--primary) 19%, transparent) 100%
+  );
+  & svg {
+    filter: drop-shadow(0 0 5px color-mix(in oklch, currentColor 45%, transparent));
+  }
+}
+
+/* interactive variant - fill brightens on hover. No drop-shadow halo: on a
+   translucent surface a glow halo just muddies, so depth stays in the fill. */
+@utility surface-accent-soft-pressable {
+  color: var(--chip-violet);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--primary) 30%, transparent) 0%,
+    color-mix(in oklch, var(--primary) 19%, transparent) 100%
+  );
+  transition:
+    background 160ms ease,
+    filter 160ms ease;
+  cursor: pointer;
+
+  & svg {
+    filter: drop-shadow(0 0 5px color-mix(in oklch, currentColor 45%, transparent));
+  }
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--primary) 38%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 26%, transparent) 100%
+    );
+  }
+
+  &:active:not(:disabled) {
+    filter: brightness(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* surface-discord-soft: Discord blurple in the translucent chip language. The
+   sign-in CTA - matches the live members chip on the homepage. */
+@utility surface-discord-soft-pressable {
+  color: oklch(0.82 0.12 272);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, oklch(0.56 0.2 270) 30%, transparent) 0%,
+    color-mix(in oklch, oklch(0.56 0.2 270) 19%, transparent) 100%
+  );
+  transition:
+    background 160ms ease,
+    filter 160ms ease;
+  cursor: pointer;
+
+  & svg {
+    filter: drop-shadow(0 0 5px color-mix(in oklch, currentColor 45%, transparent));
+  }
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, oklch(0.56 0.2 270) 40%, transparent) 0%,
+      color-mix(in oklch, oklch(0.56 0.2 270) 28%, transparent) 100%
+    );
+  }
+
+  &:active:not(:disabled) {
+    filter: brightness(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* surface-danger: destructive button. Same recipe as bronze, red glow halo. */
+@utility surface-danger-pressable {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  box-shadow:
+    var(--shadow-sm),
+    0 4px 16px -5px color-mix(in oklch, var(--destructive) 50%, transparent);
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.06);
+    box-shadow:
+      var(--shadow-md),
+      0 7px 24px -5px color-mix(in oklch, var(--destructive) 60%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    filter: brightness(0.96);
+    box-shadow:
+      var(--shadow-xs),
+      0 2px 8px -3px color-mix(in oklch, var(--destructive) 45%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* surface-well: inputs, wells, switch tracks. Recessed into the surface. */
+@utility surface-well {
+  /* recessed by a darker fill + faint inner shadow - no outline */
+  background: var(--input);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 2px 0 oklch(0 0 0 / 0.18);
+}
+
+/* surface-glass: popovers, dropdowns, dialogs, mobile nav. Near-solid + blur.
+   Drop shadows project DOWN - use surface-drawer-* for screen-edge-anchored sheets.
+   Opacity history: 78% (dropdown items collided with the filter chips), then
+   92%, now 97% - over the asset masonry even 92% bled card art straight
+   through the filter popovers (backdrop blur doesn't reliably render inside
+   animated popper wrappers, so the art behind stayed crisp). At 97% the
+   surface still reads glassy on flat page background but solid over imagery. */
+@utility surface-glass {
+  background: color-mix(in oklch, var(--background-surface) 97%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  color: var(--foreground);
+  box-shadow: var(--shadow-lg);
+}
+
+/* surface-drawer-bottom: bottom-anchored sheet drawer. Fully opaque so it reads
+   as a real solid sheet, not glass. Strong upward-projecting shadow halos
+   onto the page above. */
+@utility surface-drawer-bottom {
+  background: var(--background-surface);
+  color: var(--foreground);
+  box-shadow: 0 -12px 40px -10px oklch(0 0 0 / 0.5);
+}
+
+/* surface-drawer-top: top-anchored sheet. Shadow projects down. */
+@utility surface-drawer-top {
+  background: color-mix(in oklch, var(--background-surface) 95%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  color: var(--foreground);
+  box-shadow: 0 12px 40px -10px oklch(0 0 0 / 0.5);
+}
+
+/* surface-drawer-right: right-anchored sheet. Shadow projects left. */
+@utility surface-drawer-right {
+  background: color-mix(in oklch, var(--background-surface) 95%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  color: var(--foreground);
+  box-shadow: -12px 0 40px -10px oklch(0 0 0 / 0.5);
+}
+
+/* surface-drawer-left: left-anchored sheet. Shadow projects right. */
+@utility surface-drawer-left {
+  background: color-mix(in oklch, var(--background-surface) 95%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  color: var(--foreground);
+  box-shadow: 12px 0 40px -10px oklch(0 0 0 / 0.5);
+}
+
+/* surface-nav-active: a nav item in active state. Carved-into-the-rail feel -
+   stacked inset shadows for real depth, bottom rim-light catches the lip
+   of the depression, no side bar. Use on sidebar active nav items. */
+@utility surface-nav-active {
+  /* active nav / selection - matches the Sign-in CTA's soft-violet colour state:
+     the accent-soft gradient fill + lighter chip-violet text, glowing icon. */
+  color: var(--chip-violet);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--primary) 30%, transparent) 0%,
+    color-mix(in oklch, var(--primary) 19%, transparent) 100%
+  );
+  & svg {
+    filter: drop-shadow(0 0 6px color-mix(in oklch, currentColor 55%, transparent));
+  }
+}
+
+/* surface-nav-hover: softer version of surface-nav-active. Same recipe, half the depth.
+   Use for nav-item hover so hover feels like "starting to press in" and
+   the full surface-nav-active active state reads as "fully pressed". */
+@utility surface-nav-hover {
+  /* hover - a lighter preview of the active soft-violet fill (surface-nav-active),
+     clearly below it so selected still reads as the strongest state */
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--primary) 16%, transparent) 0%,
+    color-mix(in oklch, var(--primary) 10%, transparent) 100%
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   carry-over helpers - kept for callers that already use them
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@utility glass-panel {
+  background: color-mix(in oklch, var(--background-surface) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 30px -8px oklch(0 0 0 / 0.4);
+}
+
+@utility glass-overlay {
+  background: linear-gradient(
+    to top,
+    oklch(0.12 0.005 60 / 0.92) 0%,
+    oklch(0.12 0.005 60 / 0.55) 42%,
+    transparent 100%
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   role / handle colors - `--color-role-*` registered in @theme above so
+   `text-role-contrib`, `bg-role-staff`, etc. are generated by Tailwind.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   animations - fade family only, no motion library
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-fade-in-down {
+    animation: fade-in-down 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-fade-in-scale {
+    animation: fade-in-scale 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
